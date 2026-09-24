@@ -1052,14 +1052,23 @@
           el('button', { class: 'close-x', onclick: function () { state.activeReceiptId = null; render(); } }, ['✕']),
         ]),
         buildReceiptDoc(r, s),
-        el('div', { class: 'modal-actions' }, [
-          el('button', { class: 'btn primary', onclick: function () { window.print(); } }, ['הדפסה / PDF 🖨']),
-          el('button', { class: 'btn ghost', onclick: function () { copyReceiptText(r, s); } }, ['העתקת טקסט לוואטסאפ']),
+        el('div', { class: 'modal-actions' }, (function () {
+          var pdf = getReceiptPdf(r, s);
+          var ready = !!pdf.blob;
+          return [
+            el('button', {
+              class: 'btn primary', disabled: ready ? null : 'disabled',
+              onclick: function () { shareReceiptPdf(r, s); }
+            }, [ready ? 'שליחת PDF ללקוח ⤴' : (pdf.error ? 'שגיאה בהכנת PDF' : 'מכין PDF...')]),
+            r.clientPhone ? el('button', { class: 'btn ghost', onclick: function () { openWhatsApp(r, s); } }, ['וואטסאפ ללקוח']) : null,
+            el('button', { class: 'btn ghost', onclick: function () { window.print(); } }, ['הדפסה 🖨']),
+            el('button', { class: 'btn ghost', onclick: function () { copyReceiptText(r, s); } }, ['העתקת טקסט']),
           r.status === 'pending'
             ? el('button', { class: 'btn ghost', onclick: function () { setReceiptStatus(r, 'paid'); } }, ['סמן כשולם ✓'])
             : el('button', { class: 'btn ghost', onclick: function () { setReceiptStatus(r, 'pending'); } }, ['סמן כממתין']),
           el('button', { class: 'btn danger', onclick: function () { deleteReceipt(r); } }, ['מחיקה']),
-        ]),
+          ];
+        })()),
       ]),
     ]);
     document.body.appendChild(overlay);
@@ -1092,6 +1101,95 @@
       ]),
       el('div', { class: 'rd-foot' }, [s.exemptNote || DEFAULT_EXEMPT_NOTE]),
     ]);
+  }
+
+  // ---------------- PDF ----------------
+  var LIBS = [
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  ];
+  var libsPromise = null;
+  function loadPdfLibs() {
+    if (libsPromise) return libsPromise;
+    libsPromise = LIBS.reduce(function (p, src) {
+      return p.then(function () {
+        return new Promise(function (res, rej) {
+          var sc = document.createElement('script');
+          sc.src = src; sc.onload = res; sc.onerror = rej;
+          document.head.appendChild(sc);
+        });
+      });
+    }, Promise.resolve()).catch(function (e) { libsPromise = null; throw e; });
+    return libsPromise;
+  }
+
+  var pdfCache = {};
+  function pdfKey(r, s) {
+    return [r.id, r.number, r.status, r.amount, r.method, r.clientName, r.description, r.issueDate, r.eventDate,
+      s.businessName, s.idNumber, s.address, s.phone, s.email, s.exemptNote].join('|');
+  }
+  function pdfFileName(r) { return 'קבלה-' + r.number + '-Memories4U.pdf'; }
+
+  // מכין את ה-PDF מראש כשהקבלה נפתחת, כדי שכפתור השליחה יעבוד מיד גם באייפד ובטלפון
+  function getReceiptPdf(r, s) {
+    var key = pdfKey(r, s);
+    var entry = pdfCache[key];
+    if (entry) return entry;
+    entry = pdfCache[key] = { blob: null, error: null };
+    makeReceiptPdf(r, s).then(function (blob) {
+      entry.blob = blob; render();
+    }).catch(function () {
+      entry.error = true; delete pdfCache[key]; render();
+    });
+    return entry;
+  }
+
+  async function makeReceiptPdf(r, s) {
+    await loadPdfLibs();
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+    var holder = el('div', { dir: 'rtl', style: 'position:fixed;left:-10000px;top:0;width:760px;background:#fff;padding:36px;font-family:Heebo,sans-serif' }, [buildReceiptDoc(r, s)]);
+    document.body.appendChild(holder);
+    try {
+      var canvas = await window.html2canvas(holder, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      var pageW = 210, margin = 10;
+      var w = pageW - margin * 2;
+      var h = canvas.height * w / canvas.width;
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, w, h);
+      doc.setProperties({ title: 'קבלה ' + r.number + ' ' + ((s.businessName) || 'Memories4U') });
+      return doc.output('blob');
+    } finally {
+      holder.remove();
+    }
+  }
+
+  function shareReceiptPdf(r, s) {
+    var entry = pdfCache[pdfKey(r, s)];
+    if (!entry || !entry.blob) return;
+    var name = pdfFileName(r);
+    var file = null;
+    try { file = new File([entry.blob], name, { type: 'application/pdf' }); } catch (e) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'קבלה מס\' ' + r.number })
+        .catch(function (e) { if (!e || e.name !== 'AbortError') saveFile(name, entry.blob); });
+      return;
+    }
+    saveFile(name, entry.blob).then(function () { showToast('ה-PDF ירד למחשב, אפשר לצרף אותו לוואטסאפ או למייל'); });
+  }
+
+  function waPhone(p) {
+    var d = String(p || '').replace(/\D/g, '');
+    if (d.indexOf('00') === 0) d = d.slice(2);
+    if (d.charAt(0) === '0') d = '972' + d.slice(1);
+    return d;
+  }
+  function openWhatsApp(r, s) {
+    var phone = waPhone(r.clientPhone);
+    if (phone.length < 11) { showToast('מספר הטלפון של הלקוח לא תקין'); return; }
+    var text = 'שלום ' + r.clientName + ', מצורפת קבלה מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U') +
+      ' על סך ' + fmtMoney(r.amount) + '. תודה רבה!';
+    window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
   }
 
   function copyReceiptText(r, s) {
