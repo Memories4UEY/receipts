@@ -153,6 +153,9 @@
   .chip { font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; flex: 0 0 auto; }
   .chip.paid { background: var(--paid-soft); color: var(--paid); }
   .chip.pending { background: var(--pending-soft); color: var(--pending); }
+  .chip.draft { background: var(--surface-3); color: var(--text-muted); }
+  .chip.sent { background: var(--gold-soft); color: var(--gold); }
+  .chip.declined { background: var(--danger-soft); color: var(--danger); }
   .empty {
     text-align: center; padding: 50px 20px; color: var(--text-muted);
     border: 1px dashed var(--border); border-radius: var(--radius); font-size: 14px;
@@ -236,6 +239,33 @@
   .receipt-doc .rd-foot { margin-top: 16px; font-size: 10.5px; color: #9ca3af; text-align: center; }
 
   .modal-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .modal-actions select.btn { appearance: none; -webkit-appearance: none; padding-left: 16px; }
+  .send-label { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-top: 20px; letter-spacing: .02em; }
+
+  /* ---------- Quote items ---------- */
+  .items { display: flex; flex-direction: column; gap: 8px; }
+  .item-row { display: grid; grid-template-columns: 1fr 76px 130px 90px 36px; gap: 8px; align-items: center; }
+  .item-row input { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text); font-size: 15px; width: 100%; min-width: 0; }
+  .item-row input:focus { outline: 1.5px solid var(--gold); border-color: var(--gold); }
+  .item-row .amount-wrap input { padding-right: 28px; }
+  .item-head { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .m-lbl { display: none; }
+  .i-line { font-weight: 700; font-variant-numeric: tabular-nums; text-align: left; }
+  .i-del { background: none; border: 1px solid var(--border); border-radius: 10px; height: 40px; color: var(--text-muted); cursor: pointer; }
+  .i-del:disabled { opacity: .35; cursor: default; }
+  .q-sum { margin-top: 16px; border-top: 1px solid var(--border-soft); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; max-width: 360px; margin-inline-start: auto; }
+  .q-sum-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; color: var(--text-muted); }
+  .q-sum-row .amount-wrap input { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 28px 8px 10px; font-size: 15px; width: 100%; color: var(--text); }
+  .q-sum-row.total { font-size: 17px; font-weight: 800; color: var(--text); }
+  .q-sum-row.total span:last-child { color: var(--gold); font-variant-numeric: tabular-nums; }
+
+  .receipt-doc .rd-items { width: 100%; border-collapse: collapse; margin: 16px 0 6px; font-size: 13px; }
+  .receipt-doc .rd-items th { text-align: right; color: #6b7280; font-weight: 600; font-size: 12px; padding: 8px 6px; border-bottom: 1.5px solid #d1d5db; }
+  .receipt-doc .rd-items td { padding: 9px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  .receipt-doc .rd-items .num { text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; width: 1%; }
+  .receipt-doc .rd-valid { margin-top: 12px; font-size: 12.5px; font-weight: 600; color: #1d4ed8; }
+  .receipt-doc .rd-terms { margin-top: 12px; font-size: 11.5px; color: #4b5563; line-height: 1.6; white-space: pre-line; }
+  .receipt-doc .rd-desc { white-space: pre-line; }
 
   /* ---------- Setup gate ---------- */
   .gate { max-width: 560px; margin: 40px auto; }
@@ -243,6 +273,35 @@
 
   @media (max-width: 820px) {
     #app { flex-direction: column; }
+    .nav-links {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+      background: var(--surface); border-top: 1px solid var(--border-soft);
+      justify-content: space-around; gap: 0 !important;
+      padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -6px 20px rgba(15, 23, 42, .06);
+    }
+    .nav-link { flex-direction: column; flex: 1; gap: 2px !important; padding: 7px 2px !important; font-size: 10.5px !important; text-align: center !important; min-width: 0; }
+    .nav-link span.lbl { display: block !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .nav-link .ic { width: auto; font-size: 17px; }
+    .nav { justify-content: space-between; }
+    .main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+    .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; max-width: calc(100vw - 32px); }
+    .field input, .field select, .field textarea, .search, .item-row input, .q-sum-row .amount-wrap input { font-size: 16px; }
+    .overlay { padding: 12px 10px calc(96px + env(safe-area-inset-bottom, 0px)); }
+    .modal { padding: 18px 16px; }
+    .modal .receipt-doc { padding: 20px 16px; }
+    .modal .receipt-doc .rd-head { flex-direction: column; gap: 10px; }
+    .modal .receipt-doc .rd-title { text-align: right; }
+    .modal-actions .btn { flex: 1 1 auto; }
+    .item-row { grid-template-columns: 1fr 1fr 40px; align-items: end; }
+    .m-lbl { display: block; font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
+    .item-row .i-desc { grid-column: 1 / -1; }
+    .item-row .i-line { display: none; }
+    .item-head { display: none; }
+    .items .item-row + .item-row { border-top: 1px dashed var(--border); padding-top: 10px; }
+    .q-sum { max-width: none; }
+    .row-card { flex-wrap: wrap; row-gap: 6px; }
+    .row-main { flex-basis: calc(100% - 70px); }
     .nav { width: 100%; flex: none; height: auto; position: sticky; top: 0; flex-direction: row; align-items: center; padding: 12px 14px; z-index: 20; border-left: none; border-bottom: 1px solid var(--border-soft); }
     .brand { flex-direction: row; align-items: baseline; gap: 8px; }
     .nav-links { flex-direction: row; overflow-x: auto; }
@@ -256,8 +315,11 @@
     .row-date { display: none; }
   }
 
+  @page { size: A4; margin: 12mm; }
   @media print {
     body * { visibility: hidden; }
+    .pdf-holder { display: none !important; }
+    .receipt-doc { border: none !important; }
     .receipt-doc, .receipt-doc * { visibility: visible; }
     .receipt-doc { position: absolute; top: 0; right: 0; left: 0; margin: 0; border-radius: 0; }
   }
@@ -311,6 +373,10 @@
     clients: [],
     receipts: [],
     expenses: [],
+    quotes: [],
+    quoteDraft: null,
+    activeQuoteId: null,
+    quoteSearch: '',
     view: 'dashboard',
     activeReceiptId: null,
     editingSettings: false,
@@ -390,7 +456,7 @@
       state.accessDenied = false;
       state.settings = null; state.settingsLoaded = false;
       state._settingsDraft = null;
-      state.clients = []; state.receipts = []; state.expenses = [];
+      state.clients = []; state.receipts = []; state.expenses = []; state.quotes = [];
       state.db = user ? fdb : null;
       state.dbReady = true;
       render();
@@ -407,6 +473,10 @@
       }, onListenError));
       unsubs.push(db.collection('receipts').orderBy('number', 'desc').limit(1000).onSnapshot(function (qs) {
         state.receipts = qs.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        render();
+      }, onListenError));
+      unsubs.push(db.collection('quotes').orderBy('number', 'desc').limit(1000).onSnapshot(function (qs) {
+        state.quotes = qs.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
         render();
       }, onListenError));
       unsubs.push(db.collection('expenses').orderBy('date', 'desc').limit(1000).onSnapshot(function (qs) {
@@ -443,7 +513,7 @@
   // שמירת קובץ למחשב או לטלפון
   function saveFile(filename, data, mime) {
     try {
-      var blob = new Blob([data], { type: mime || 'text/plain;charset=utf-8' });
+      var blob = (data instanceof Blob && !mime) ? data : new Blob([data], { type: mime || 'text/plain;charset=utf-8' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url; a.download = filename;
@@ -458,11 +528,13 @@
     var links = [
       { id: 'dashboard', label: 'לוח בקרה', ic: '◆' },
       { id: 'receipts', label: 'קבלות', ic: '▤' },
+      { id: 'quotes', label: 'הצעות מחיר', ic: '✎' },
       { id: 'expenses', label: 'הוצאות', ic: '⊟' },
       { id: 'clients', label: 'לקוחות', ic: '◈' },
       { id: 'settings', label: 'הגדרות', ic: '⚙' },
     ];
     var isExpenseCtx = state.view === 'expenses' || state.view === 'newExpense';
+    var isQuoteCtx = state.view === 'quotes' || state.view === 'newQuote';
     var nav = el('div', { class: 'nav' }, [
       el('div', { class: 'brand' }, [
         el('div', { class: 'word' }, ['Memories4U']),
@@ -471,24 +543,24 @@
       el('div', { class: 'nav-links' }, links.map(function (l) {
         return el('button', {
           class: 'nav-link' + (state.view === l.id ? ' active' : ''),
-          onclick: function () { state.view = l.id; state.activeReceiptId = null; render(); }
+          onclick: function () { state.view = l.id; state.activeReceiptId = null; state.activeQuoteId = null; state.listSearch = ''; render(); window.scrollTo(0, 0); }
         }, [el('span', { class: 'ic' }, [l.ic]), el('span', { class: 'lbl' }, [l.label])]);
       })),
       el('div', { class: 'nav-spacer' }),
       el('button', {
         class: 'nav-cta',
-        onclick: function () { if (isExpenseCtx) openNewExpense(); else openNewReceipt(); }
-      }, [isExpenseCtx ? '+ הוצאה חדשה' : '+ קבלה חדשה']),
+        onclick: function () { if (isExpenseCtx) openNewExpense(); else if (isQuoteCtx) openNewQuote(); else openNewReceipt(); }
+      }, [isExpenseCtx ? '+ הוצאה חדשה' : (isQuoteCtx ? '+ הצעה חדשה' : '+ קבלה חדשה')]),
     ]);
     root.appendChild(nav);
   }
 
-  function openNewReceipt() {
-    state.newReceiptDraft = {
-      clientId: null, clientName: '', clientPhone: '',
+  function openNewReceipt(prefill) {
+    state.newReceiptDraft = Object.assign({
+      clientId: null, clientName: '', clientPhone: '', clientEmail: '',
       description: '', amount: '', method: 'bit', status: 'paid',
-      eventDate: todayIso(), issueDate: todayIso(), notes: ''
-    };
+      eventDate: todayIso(), issueDate: todayIso(), notes: '', fromQuoteId: null
+    }, (prefill && prefill.clientName !== undefined) ? prefill : {});
     state.clientQuery = '';
     state.clientPickerOpen = false;
     state.view = 'newReceipt';
@@ -879,47 +951,28 @@
   function renderNewReceipt(main) {
     var d = state.newReceiptDraft;
     main.appendChild(el('div', { class: 'page-head' }, [el('h1', {}, ['קבלה חדשה'])]));
+    if (d.fromQuoteId) {
+      var fq = state.quotes.find(function (x) { return x.id === d.fromQuoteId; });
+      if (fq) main.appendChild(el('div', { class: 'hint', style: 'color:var(--text-muted);margin:-12px 0 16px;font-size:13.5px' }, ['הפרטים מולאו מהצעת מחיר מס\' ' + fq.number + '. בדקו את הסכום לפני היצירה.']));
+    }
 
     var card = el('div', { class: 'card' }, []);
     var grid = el('div', { class: 'form-grid' }, []);
 
-    // client autocomplete
-    var acWrap = el('div', { class: 'field full autocomplete' }, [
-      el('label', {}, ['לקוח']),
-      el('input', {
-        placeholder: 'הקלידו שם לקוח קיים או חדש...',
-        value: d.clientId ? d.clientName : state.clientQuery,
-        oninput: function (e) {
-          d.clientId = null; d.clientName = e.target.value;
-          state.clientQuery = e.target.value; state.clientPickerOpen = true; render();
-        },
-        onfocus: function () { state.clientPickerOpen = true; render(); }
-      }),
-    ]);
-    if (state.clientPickerOpen && state.clientQuery) {
-      var q = state.clientQuery.toLowerCase();
-      var matches = state.clients.filter(function (c) { return (c.name || '').toLowerCase().indexOf(q) > -1; }).slice(0, 6);
-      var acList = el('div', { class: 'ac-list' }, []);
-      matches.forEach(function (c) {
-        acList.appendChild(el('div', {
-          class: 'ac-item', onclick: function () {
-            d.clientId = c.id; d.clientName = c.name; d.clientPhone = c.phone || '';
-            state.clientPickerOpen = false; render();
-          }
-        }, [el('div', { class: 'n' }, [c.name]), c.phone ? el('div', { class: 'p' }, [c.phone]) : null]));
-      });
-      acList.appendChild(el('div', {
-        class: 'ac-item ac-new', onclick: function () { state.clientPickerOpen = false; render(); }
-      }, ['+ הוספת לקוח חדש "' + state.clientQuery + '"']));
-      acWrap.appendChild(acList);
-    }
-    grid.appendChild(acWrap);
+    grid.appendChild(clientPicker(d));
 
     grid.appendChild(el('div', { class: 'field' }, [
       el('label', {}, ['טלפון (אופציונלי)']),
       el('input', {
-        value: d.clientPhone, placeholder: '050-0000000',
+        type: 'tel', value: d.clientPhone, placeholder: '050-0000000',
         oninput: function (e) { d.clientPhone = e.target.value; }
+      }),
+    ]));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['מייל (אופציונלי)']),
+      el('input', {
+        type: 'email', dir: 'ltr', value: d.clientEmail, placeholder: 'name@example.com',
+        oninput: function (e) { d.clientEmail = e.target.value; }
       }),
     ]));
     grid.appendChild(el('div', { class: 'field' }, [
@@ -996,20 +1049,11 @@
     if (state.saving) return;
     if (!d.clientName.trim()) { showToast('צריך למלא שם לקוח'); return; }
     if (!(Number(d.amount) > 0)) { showToast('צריך למלא סכום גדול מ-0'); return; }
+    if (d.clientEmail && !isEmail(d.clientEmail)) { showToast('כתובת המייל לא תקינה'); return; }
     if (!state.db) { showToast('צריך להתחבר כדי לשמור'); return; }
     state.saving = true; render();
     try {
-      var clientId = d.clientId;
-      if (!clientId) {
-        var existing = state.clients.find(function (c) { return c.name === d.clientName.trim(); });
-        if (existing) clientId = existing.id;
-        else {
-          var ref = await state.db.collection('clients').add({
-            name: d.clientName.trim(), phone: d.clientPhone || '', email: '', createdAt: Date.now()
-          });
-          clientId = ref.id;
-        }
-      }
+      var clientId = await ensureClient(d);
       var receiptRef = state.db.collection('receipts').doc();
       var number = await state.db.runTransaction(function (tx) {
         var sref = state.db.doc('settings/business');
@@ -1017,10 +1061,11 @@
           var sd = snap.exists ? snap.data() : {};
           var n = Number(sd.nextNumber) || Number(sd.startNumber) || 1;
           tx.set(sref, { nextNumber: n + 1 }, { merge: true });
+          if (d.fromQuoteId) tx.update(state.db.doc('quotes/' + d.fromQuoteId), { status: 'approved', receiptId: receiptRef.id });
           tx.set(receiptRef, {
             number: n, clientId: clientId, clientName: d.clientName.trim(),
-            clientPhone: d.clientPhone || '', description: d.description || '',
-            amount: Number(d.amount), method: d.method, status: d.status,
+            clientPhone: d.clientPhone || '', clientEmail: (d.clientEmail || '').trim(), description: d.description || '',
+            amount: Number(d.amount), method: d.method, status: d.status, fromQuoteId: d.fromQuoteId || null,
             eventDate: d.eventDate, issueDate: d.issueDate, notes: d.notes || '',
             createdAt: Date.now(), createdBy: (state.user && state.user.email) || ''
           });
@@ -1052,31 +1097,29 @@
           el('button', { class: 'close-x', onclick: function () { state.activeReceiptId = null; render(); } }, ['✕']),
         ]),
         buildReceiptDoc(r, s),
-        el('div', { class: 'modal-actions' }, (function () {
-          var pdf = getReceiptPdf(r, s);
-          var ready = !!pdf.blob;
-          return [
-            el('button', {
-              class: 'btn primary', disabled: ready ? null : 'disabled',
-              onclick: function () { shareReceiptPdf(r, s); }
-            }, [ready ? 'שליחת PDF ללקוח ⤴' : (pdf.error ? 'שגיאה בהכנת PDF' : 'מכין PDF...')]),
-            r.clientPhone ? el('button', { class: 'btn ghost', onclick: function () { openWhatsApp(r, s); } }, ['וואטסאפ ללקוח']) : null,
-            el('button', { class: 'btn ghost', onclick: function () { window.print(); } }, ['הדפסה 🖨']),
-            el('button', { class: 'btn ghost', onclick: function () { copyReceiptText(r, s); } }, ['העתקת טקסט']),
+        el('div', { class: 'send-label' }, ['שליחה ללקוח']),
+        el('div', { class: 'modal-actions', style: 'margin-top:8px' }, sendBar({
+          entry: receiptPdfEntry(r, s), fileName: pdfFileName(r), title: 'קבלה מס\' ' + r.number,
+          phone: r.clientPhone, email: r.clientEmail,
+          subject: 'קבלה מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U'),
+          message: 'שלום ' + r.clientName + ', מצורפת קבלה מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U') + ' על סך ' + fmtMoney(r.amount) + '. תודה רבה!'
+        })),
+        el('div', { class: 'send-label' }, ['ניהול']),
+        el('div', { class: 'modal-actions', style: 'margin-top:8px' }, [
           r.status === 'pending'
             ? el('button', { class: 'btn ghost', onclick: function () { setReceiptStatus(r, 'paid'); } }, ['סמן כשולם ✓'])
             : el('button', { class: 'btn ghost', onclick: function () { setReceiptStatus(r, 'pending'); } }, ['סמן כממתין']),
+          el('button', { class: 'btn ghost', onclick: function () { copyReceiptText(r, s); } }, ['העתקת טקסט']),
           el('button', { class: 'btn danger', onclick: function () { deleteReceipt(r); } }, ['מחיקה']),
-          ];
-        })()),
+        ]),
       ]),
     ]);
-    document.body.appendChild(overlay);
     overlay.id = 'receipt-overlay';
+    document.body.appendChild(overlay);
   }
 
   function buildReceiptDoc(r, s) {
-    var bizLines = [s.businessName || 'Memories4U', 'עוסק פטור' + (s.idNumber ? ' · ע.מ ' + s.idNumber : ''), s.address || '', [s.phone, s.email].filter(Boolean).join(' · ')].filter(Boolean);
+    var bizLines = [s.businessName || 'Memories4U', 'עוסק פטור' + (s.idNumber ? ' · ע.מ ' + s.idNumber : ''), s.address || '', [ltr(s.phone), ltr(s.email)].filter(Boolean).join(' · ')].filter(Boolean);
     return el('div', { class: 'receipt-doc' }, [
       el('div', { class: 'rd-head' }, [
         el('div', {}, [
@@ -1129,53 +1172,60 @@
       s.businessName, s.idNumber, s.address, s.phone, s.email, s.exemptNote].join('|');
   }
   function pdfFileName(r) { return 'קבלה-' + r.number + '-Memories4U.pdf'; }
+  function receiptPdfEntry(r, s) { return getPdf('r|' + pdfKey(r, s), function () { return buildReceiptDoc(r, s); }); }
 
-  // מכין את ה-PDF מראש כשהקבלה נפתחת, כדי שכפתור השליחה יעבוד מיד גם באייפד ובטלפון
-  function getReceiptPdf(r, s) {
-    var key = pdfKey(r, s);
+  // מכין את ה-PDF מראש כשהמסמך נפתח, כדי שכפתורי השליחה יעבדו מיד גם באייפד ובטלפון
+  function getPdf(key, buildFn) {
     var entry = pdfCache[key];
     if (entry) return entry;
     entry = pdfCache[key] = { blob: null, error: null };
-    makeReceiptPdf(r, s).then(function (blob) {
+    makePdf(buildFn).then(function (blob) {
       entry.blob = blob; render();
     }).catch(function () {
-      entry.error = true; delete pdfCache[key]; render();
+      entry.error = true; render();
+      setTimeout(function () { if (pdfCache[key] === entry) delete pdfCache[key]; }, 3000);
     });
     return entry;
   }
 
-  async function makeReceiptPdf(r, s) {
+  var pdfQueue = Promise.resolve();
+  function makePdf(buildFn) {
+    var job = pdfQueue.then(function () { return makePdfNow(buildFn); });
+    pdfQueue = job.catch(function () {});
+    return job;
+  }
+  async function makePdfNow(buildFn) {
     await loadPdfLibs();
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
-    var holder = el('div', { dir: 'rtl', style: 'position:fixed;left:-10000px;top:0;width:760px;background:#fff;padding:36px;font-family:Heebo,sans-serif' }, [buildReceiptDoc(r, s)]);
+    var holder = el('div', { dir: 'rtl', class: 'pdf-holder', style: 'position:fixed;left:-10000px;top:0;width:760px;background:#fff;padding:36px;font-family:Heebo,sans-serif' }, [buildFn()]);
     document.body.appendChild(holder);
     try {
       var canvas = await window.html2canvas(holder, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
       var jsPDF = window.jspdf.jsPDF;
       var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-      var pageW = 210, margin = 10;
+      var pageW = 210, pageH = 297, margin = 10;
       var w = pageW - margin * 2;
       var h = canvas.height * w / canvas.width;
-      doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, w, h);
-      doc.setProperties({ title: 'קבלה ' + r.number + ' ' + ((s.businessName) || 'Memories4U') });
+      var maxH = pageH - margin * 2;
+      if (h <= maxH) {
+        doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, w, h);
+      } else {
+        // מסמך ארוך, מחלקים לכמה עמודים
+        var sliceH = Math.floor(canvas.width * maxH / w);
+        for (var y = 0, page = 0; y < canvas.height; y += sliceH, page++) {
+          var part = document.createElement('canvas');
+          part.width = canvas.width; part.height = Math.min(sliceH, canvas.height - y);
+          var ctx = part.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, part.width, part.height);
+          ctx.drawImage(canvas, 0, y, canvas.width, part.height, 0, 0, canvas.width, part.height);
+          if (page) doc.addPage();
+          doc.addImage(part.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, w, part.height * w / canvas.width);
+        }
+      }
       return doc.output('blob');
     } finally {
       holder.remove();
     }
-  }
-
-  function shareReceiptPdf(r, s) {
-    var entry = pdfCache[pdfKey(r, s)];
-    if (!entry || !entry.blob) return;
-    var name = pdfFileName(r);
-    var file = null;
-    try { file = new File([entry.blob], name, { type: 'application/pdf' }); } catch (e) {}
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: 'קבלה מס\' ' + r.number })
-        .catch(function (e) { if (!e || e.name !== 'AbortError') saveFile(name, entry.blob); });
-      return;
-    }
-    saveFile(name, entry.blob).then(function () { showToast('ה-PDF ירד למחשב, אפשר לצרף אותו לוואטסאפ או למייל'); });
   }
 
   function waPhone(p) {
@@ -1184,12 +1234,477 @@
     if (d.charAt(0) === '0') d = '972' + d.slice(1);
     return d;
   }
-  function openWhatsApp(r, s) {
-    var phone = waPhone(r.clientPhone);
-    if (phone.length < 11) { showToast('מספר הטלפון של הלקוח לא תקין'); return; }
-    var text = 'שלום ' + r.clientName + ', מצורפת קבלה מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U') +
-      ' על סך ' + fmtMoney(r.amount) + '. תודה רבה!';
-    window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
+
+  // ---------------- client picker (shared) ----------------
+  function clientPicker(d) {
+    var acWrap = el('div', { class: 'field full autocomplete' }, [
+      el('label', {}, ['לקוח']),
+      el('input', {
+        placeholder: 'הקלידו שם לקוח קיים או חדש...',
+        value: d.clientName || '', autocomplete: 'off',
+        oninput: function (e) {
+          d.clientId = null; d.clientName = e.target.value;
+          state.clientQuery = e.target.value; state.clientPickerOpen = true; render();
+        },
+        onfocus: function () { if (!state.clientPickerOpen) { state.clientPickerOpen = true; render(); } }
+      }),
+    ]);
+    if (state.clientPickerOpen && state.clientQuery) {
+      var q = state.clientQuery.toLowerCase();
+      var matches = state.clients.filter(function (c) { return (c.name || '').toLowerCase().indexOf(q) > -1; }).slice(0, 6);
+      var acList = el('div', { class: 'ac-list' }, []);
+      matches.forEach(function (c) {
+        acList.appendChild(el('div', {
+          class: 'ac-item', onclick: function () {
+            d.clientId = c.id; d.clientName = c.name; d.clientPhone = c.phone || ''; d.clientEmail = c.email || '';
+            state.clientPickerOpen = false; state.clientQuery = ''; render();
+          }
+        }, [el('div', { class: 'n' }, [c.name]), (c.phone || c.email) ? el('div', { class: 'p' }, [[c.phone, c.email].filter(Boolean).join(' · ')]) : null]));
+      });
+      acList.appendChild(el('div', {
+        class: 'ac-item ac-new', onclick: function () { state.clientPickerOpen = false; render(); }
+      }, ['+ הוספת לקוח חדש "' + state.clientQuery + '"']));
+      acWrap.appendChild(acList);
+    }
+    return acWrap;
+  }
+
+  // מוצא לקוח קיים לפי שם או יוצר חדש, ומעדכן טלפון ומייל אם נוספו
+  async function ensureClient(d) {
+    var name = d.clientName.trim();
+    var clientId = d.clientId;
+    var existing = clientId
+      ? state.clients.find(function (c) { return c.id === clientId; })
+      : state.clients.find(function (c) { return c.name === name; });
+    if (existing) {
+      var upd = {};
+      if (d.clientPhone && d.clientPhone !== existing.phone) upd.phone = d.clientPhone;
+      if (d.clientEmail && d.clientEmail !== existing.email) upd.email = d.clientEmail;
+      if (Object.keys(upd).length) { try { await state.db.doc('clients/' + existing.id).update(upd); } catch (e) {} }
+      return existing.id;
+    }
+    var ref = await state.db.collection('clients').add({
+      name: name, phone: d.clientPhone || '', email: d.clientEmail || '', createdAt: Date.now()
+    });
+    return ref.id;
+  }
+
+  // ---------------- sending (shared) ----------------
+  function canShareFiles() {
+    try {
+      return !!(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] }));
+    } catch (e) { return false; }
+  }
+  function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim()); }
+
+  // o: { entry, fileName, title, phone, email, subject, message }
+  function sendDoc(channel, o) {
+    if (!o.entry || !o.entry.blob) { showToast('ה-PDF עדיין בהכנה, רגע אחד'); return false; }
+    var file = null;
+    try { file = new File([o.entry.blob], o.fileName, { type: 'application/pdf' }); } catch (e) {}
+    if (file && canShareFiles()) {
+      navigator.share({ files: [file], title: o.title }).catch(function (e) {
+        if (e && e.name === 'AbortError') return;
+        fallback();
+      });
+      return true;
+    }
+    fallback();
+    return true;
+
+    function fallback() {
+      saveFile(o.fileName, o.entry.blob);
+      if (channel === 'wa') {
+        var ph = waPhone(o.phone);
+        var url = 'https://wa.me/' + (ph.length >= 11 ? ph : '') + '?text=' + encodeURIComponent(o.message);
+        window.open(url, '_blank', 'noopener');
+        showToast('ה-PDF ירד למחשב. גררו אותו לצ\'אט בוואטסאפ');
+      } else if (channel === 'mail') {
+        var to = isEmail(o.email) ? o.email.trim() : '';
+        location.href = 'mailto:' + to + '?subject=' + encodeURIComponent(o.subject) + '&body=' + encodeURIComponent(o.message);
+        showToast('ה-PDF ירד למחשב. צרפו אותו למייל');
+      } else {
+        showToast('ה-PDF ירד למחשב');
+      }
+    }
+  }
+
+  function sendBar(o, onSent) {
+    var ready = !!(o.entry && o.entry.blob);
+    var label = function (t) { return ready ? t : (o.entry && o.entry.error ? 'שגיאה בהכנת PDF' : 'מכין PDF...'); };
+    function go(ch) { if (sendDoc(ch, o) && onSent) onSent(ch); }
+    return [
+      el('button', { class: 'btn primary', disabled: ready ? null : 'disabled', onclick: function () { go('wa'); } }, [label('וואטסאפ')]),
+      el('button', { class: 'btn primary', disabled: ready ? null : 'disabled', onclick: function () { go('mail'); } }, [label('מייל')]),
+      el('button', { class: 'btn ghost', onclick: function () { window.print(); if (onSent) onSent('print'); } }, ['הדפסה 🖨']),
+      ready && !canShareFiles() ? el('button', { class: 'btn ghost', onclick: function () { saveFile(o.fileName, o.entry.blob); } }, ['הורדת PDF']) : null,
+    ];
+  }
+
+  // ---------------- quotes ----------------
+  var QUOTE_STATUS = {
+    draft: { label: 'טיוטה', cls: 'draft' },
+    sent: { label: 'נשלחה', cls: 'sent' },
+    approved: { label: 'אושרה', cls: 'paid' },
+    declined: { label: 'לא אושרה', cls: 'declined' },
+  };
+  function addDaysIso(iso, days) {
+    var d = new Date(iso + 'T12:00:00');
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+  function quoteSubtotal(q) {
+    return (q.items || []).reduce(function (sum, it) { return sum + (Number(it.qty) || 0) * (Number(it.price) || 0); }, 0);
+  }
+  function quoteTotal(q) { return Math.max(0, quoteSubtotal(q) - (Number(q.discount) || 0)); }
+
+  function openNewQuote() {
+    state.quoteDraft = {
+      id: null, clientId: null, clientName: '', clientPhone: '', clientEmail: '',
+      eventType: '', eventDate: '', location: '',
+      items: [{ desc: '', qty: 1, price: '' }], discount: '',
+      issueDate: todayIso(), validUntil: addDaysIso(todayIso(), 14), notes: ''
+    };
+    state.clientQuery = ''; state.clientPickerOpen = false;
+    state.view = 'newQuote'; state.activeQuoteId = null; state.activeReceiptId = null;
+    render();
+  }
+  function openEditQuote(q) {
+    state.quoteDraft = JSON.parse(JSON.stringify({
+      id: q.id, clientId: q.clientId || null, clientName: q.clientName || '', clientPhone: q.clientPhone || '', clientEmail: q.clientEmail || '',
+      eventType: q.eventType || '', eventDate: q.eventDate || '', location: q.location || '',
+      items: (q.items && q.items.length) ? q.items : [{ desc: '', qty: 1, price: '' }], discount: q.discount || '',
+      issueDate: q.issueDate || todayIso(), validUntil: q.validUntil || '', notes: q.notes || ''
+    }));
+    state.clientQuery = ''; state.clientPickerOpen = false;
+    state.view = 'newQuote'; state.activeQuoteId = null;
+    render();
+  }
+
+  function renderQuoteList(items) {
+    var list = el('div', { class: 'list' }, []);
+    items.forEach(function (q) {
+      var st = QUOTE_STATUS[q.status] || QUOTE_STATUS.draft;
+      list.appendChild(el('div', {
+        class: 'row-card', onclick: function () { state.activeQuoteId = q.id; render(); }
+      }, [
+        el('div', { class: 'row-num' }, ['#' + q.number]),
+        el('div', { class: 'row-main' }, [
+          el('div', { class: 'name' }, [q.clientName || 'לקוח']),
+          el('div', { class: 'desc' }, [[q.eventType, q.eventDate ? fmtDate(q.eventDate) : ''].filter(Boolean).join(' · ')]),
+        ]),
+        el('div', { class: 'row-date' }, [fmtDate(q.issueDate)]),
+        el('div', { class: 'chip ' + st.cls }, [st.label]),
+        el('div', { class: 'row-amount' }, [fmtMoney(quoteTotal(q))]),
+      ]));
+    });
+    return list;
+  }
+
+  function renderQuotesPage(main) {
+    main.appendChild(el('div', { class: 'page-head' }, [
+      el('h1', {}, ['הצעות מחיר']),
+      el('button', { class: 'btn primary', onclick: openNewQuote }, ['+ הצעה חדשה']),
+    ]));
+    main.appendChild(el('div', { class: 'toolbar' }, [
+      el('input', {
+        class: 'search', placeholder: 'חיפוש לפי שם לקוח, סוג אירוע או מספר...', value: state.quoteSearch,
+        oninput: function (e) { state.quoteSearch = e.target.value; render(); }
+      }),
+    ]));
+    var q = (state.quoteSearch || '').trim().toLowerCase();
+    var items = state.quotes.filter(function (x) {
+      if (!q) return true;
+      return (x.clientName || '').toLowerCase().indexOf(q) > -1 ||
+             (x.eventType || '').toLowerCase().indexOf(q) > -1 ||
+             String(x.number).indexOf(q) > -1;
+    });
+    if (!items.length) {
+      main.appendChild(el('div', { class: 'empty' }, [
+        el('div', { class: 'big' }, ['📝']),
+        el('div', {}, [state.quotes.length ? 'לא נמצאו הצעות תואמות' : 'עדיין לא נוצרו הצעות מחיר']),
+        state.quotes.length ? null : el('div', { style: 'margin-top:14px' }, [
+          el('button', { class: 'btn primary', onclick: openNewQuote }, ['יצירת הצעת המחיר הראשונה'])
+        ]),
+      ]));
+    } else {
+      main.appendChild(renderQuoteList(items));
+    }
+  }
+
+  function updateQuoteTotals() {
+    var d = state.quoteDraft; if (!d) return;
+    var t = document.getElementById('q-total'); if (t) t.textContent = fmtMoney(quoteTotal(d));
+    var sub = document.getElementById('q-subtotal'); if (sub) sub.textContent = fmtMoney(quoteSubtotal(d));
+    (d.items || []).forEach(function (it, i) {
+      var c = document.getElementById('q-line-' + i);
+      if (c) c.textContent = fmtMoney((Number(it.qty) || 0) * (Number(it.price) || 0));
+    });
+  }
+
+  function renderNewQuote(main) {
+    var d = state.quoteDraft;
+    main.appendChild(el('div', { class: 'page-head' }, [el('h1', {}, [d.id ? 'עריכת הצעת מחיר' : 'הצעת מחיר חדשה'])]));
+    var card = el('div', { class: 'card' }, []);
+    var grid = el('div', { class: 'form-grid' }, []);
+
+    grid.appendChild(clientPicker(d));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['טלפון']),
+      el('input', { type: 'tel', value: d.clientPhone, placeholder: '050-0000000', oninput: function (e) { d.clientPhone = e.target.value; } }),
+    ]));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['מייל']),
+      el('input', { type: 'email', dir: 'ltr', value: d.clientEmail, placeholder: 'name@example.com', oninput: function (e) { d.clientEmail = e.target.value; } }),
+    ]));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['סוג האירוע']),
+      el('input', { value: d.eventType, placeholder: 'חתונה, בר מצווה, אירוע חברה...', oninput: function (e) { d.eventType = e.target.value; } }),
+    ]));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['תאריך האירוע']),
+      el('input', { type: 'date', value: d.eventDate, oninput: function (e) { d.eventDate = e.target.value; } }),
+    ]));
+    grid.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['מיקום']),
+      el('input', { value: d.location, placeholder: 'שם האולם או הכתובת', oninput: function (e) { d.location = e.target.value; } }),
+    ]));
+    card.appendChild(grid);
+
+    // items
+    card.appendChild(el('div', { class: 'section-title', style: 'margin-top:6px' }, ['פריטים']));
+    var itemsWrap = el('div', { class: 'items' }, [
+      el('div', { class: 'item-row item-head' }, [
+        el('div', {}, ['תיאור']), el('div', {}, ['כמות']), el('div', {}, ['מחיר ליחידה']), el('div', {}, ['סה"כ']), el('div', {}, ['']),
+      ]),
+    ]);
+    d.items.forEach(function (it, i) {
+      itemsWrap.appendChild(el('div', { class: 'item-row' }, [
+        el('input', { class: 'i-desc', value: it.desc, placeholder: 'למשל: עמדת צילום ל-4 שעות', oninput: function (e) { it.desc = e.target.value; } }),
+        el('div', { class: 'i-qty' }, [
+          el('span', { class: 'm-lbl' }, ['כמות']),
+          el('input', { type: 'number', inputmode: 'decimal', min: '0', value: it.qty, 'aria-label': 'כמות', oninput: function (e) { it.qty = e.target.value; updateQuoteTotals(); } }),
+        ]),
+        el('div', { class: 'i-price' }, [
+          el('span', { class: 'm-lbl' }, ['מחיר ליחידה']),
+          el('div', { class: 'amount-wrap' }, [
+            el('span', { class: 'sign' }, ['₪']),
+            el('input', { type: 'number', inputmode: 'decimal', min: '0', value: it.price, placeholder: '0', 'aria-label': 'מחיר ליחידה', oninput: function (e) { it.price = e.target.value; updateQuoteTotals(); } }),
+          ]),
+        ]),
+        el('div', { class: 'i-line', id: 'q-line-' + i }, [fmtMoney((Number(it.qty) || 0) * (Number(it.price) || 0))]),
+        el('button', {
+          class: 'i-del', title: 'הסרת שורה', 'aria-label': 'הסרת שורה', disabled: d.items.length < 2 ? 'disabled' : null,
+          onclick: function () { d.items.splice(i, 1); render(); }
+        }, ['✕']),
+      ]));
+    });
+    itemsWrap.appendChild(el('button', {
+      class: 'btn ghost small', style: 'margin-top:4px', onclick: function () { d.items.push({ desc: '', qty: 1, price: '' }); render(); }
+    }, ['+ הוספת שורה']));
+    card.appendChild(itemsWrap);
+
+    card.appendChild(el('div', { class: 'q-sum' }, [
+      el('div', { class: 'q-sum-row' }, [el('span', {}, ['סכום ביניים']), el('span', { id: 'q-subtotal' }, [fmtMoney(quoteSubtotal(d))])]),
+      el('div', { class: 'q-sum-row' }, [
+        el('span', {}, ['הנחה']),
+        el('div', { class: 'amount-wrap', style: 'width:130px' }, [
+          el('span', { class: 'sign' }, ['₪']),
+          el('input', { type: 'number', inputmode: 'decimal', min: '0', value: d.discount, placeholder: '0', 'aria-label': 'הנחה', oninput: function (e) { d.discount = e.target.value; updateQuoteTotals(); } }),
+        ]),
+      ]),
+      el('div', { class: 'q-sum-row total' }, [el('span', {}, ['סה"כ לתשלום']), el('span', { id: 'q-total' }, [fmtMoney(quoteTotal(d))])]),
+    ]));
+
+    var grid2 = el('div', { class: 'form-grid', style: 'margin-top:18px' }, []);
+    grid2.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['תאריך ההצעה']),
+      el('input', { type: 'date', value: d.issueDate, oninput: function (e) { d.issueDate = e.target.value; } }),
+    ]));
+    grid2.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['בתוקף עד']),
+      el('input', { type: 'date', value: d.validUntil, oninput: function (e) { d.validUntil = e.target.value; } }),
+    ]));
+    grid2.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['הערות ללקוח (מופיע בהצעה)']),
+      el('textarea', { placeholder: 'למשל: המחיר כולל הגעה והתקנה', oninput: function (e) { d.notes = e.target.value; } }, [d.notes]),
+    ]));
+    card.appendChild(grid2);
+
+    card.appendChild(el('div', { class: 'modal-actions' }, [
+      el('button', { class: 'btn primary', disabled: state.saving ? 'disabled' : null, onclick: saveQuote }, [state.saving ? 'שומר...' : (d.id ? 'שמירת שינויים' : 'יצירת הצעת מחיר')]),
+      el('button', { class: 'btn ghost', onclick: function () { state.view = 'quotes'; render(); } }, ['ביטול']),
+    ]));
+    main.appendChild(card);
+  }
+
+  async function saveQuote() {
+    var d = state.quoteDraft;
+    if (state.saving) return;
+    if (!d.clientName.trim()) { showToast('צריך למלא שם לקוח'); return; }
+    var items = d.items.filter(function (it) { return (it.desc || '').trim() || Number(it.price) > 0; })
+      .map(function (it) { return { desc: (it.desc || '').trim(), qty: Number(it.qty) || 0, price: Number(it.price) || 0 }; });
+    if (!items.length) { showToast('צריך להוסיף לפחות פריט אחד'); return; }
+    if (d.clientEmail && !isEmail(d.clientEmail)) { showToast('כתובת המייל לא תקינה'); return; }
+    if (!state.db) { showToast('צריך להתחבר כדי לשמור'); return; }
+    state.saving = true; render();
+    try {
+      var clientId = await ensureClient(d);
+      var body = {
+        clientId: clientId, clientName: d.clientName.trim(), clientPhone: d.clientPhone || '', clientEmail: (d.clientEmail || '').trim(),
+        eventType: d.eventType || '', eventDate: d.eventDate || '', location: d.location || '',
+        items: items, discount: Number(d.discount) || 0,
+        issueDate: d.issueDate || todayIso(), validUntil: d.validUntil || '', notes: d.notes || '',
+        updatedAt: Date.now()
+      };
+      var id = d.id, number;
+      if (id) {
+        await state.db.doc('quotes/' + id).update(body);
+      } else {
+        var ref = state.db.collection('quotes').doc();
+        id = ref.id;
+        number = await state.db.runTransaction(function (tx) {
+          var sref = state.db.doc('settings/business');
+          return tx.get(sref).then(function (snap) {
+            var n = Number((snap.exists ? snap.data() : {}).quoteNextNumber) || 1;
+            tx.set(sref, { quoteNextNumber: n + 1 }, { merge: true });
+            tx.set(ref, Object.assign({ number: n, status: 'draft', createdAt: Date.now() }, body));
+            return n;
+          });
+        });
+      }
+      state.saving = false;
+      state.view = 'quotes';
+      state.activeQuoteId = id;
+      render();
+      showToast(number ? 'הצעת מחיר מס\' ' + number + ' נוצרה' : 'ההצעה עודכנה');
+    } catch (e) {
+      state.saving = false; render();
+      showToast('שגיאה בשמירת ההצעה, נסו שוב');
+    }
+  }
+
+  function ltr(t) { return t ? '\u2066' + t + '\u2069' : ''; }
+  function bizHeader(s, title, number) {
+    var bizLine = ['עוסק פטור' + (s.idNumber ? ' · ע.מ ' + s.idNumber : ''), s.address || '', ltr(s.phone), ltr(s.email)].filter(Boolean).join(' | ');
+    return el('div', { class: 'rd-head' }, [
+      el('div', {}, [
+        el('div', { class: 'rd-brand' }, [s.businessName || 'Memories4U']),
+        el('div', { class: 'rd-biz' }, [bizLine]),
+      ]),
+      el('div', { class: 'rd-title' }, [
+        el('div', { class: 't' }, [title]),
+        el('div', { class: 'n' }, ['מס\' ' + number]),
+      ]),
+    ]);
+  }
+
+  function buildQuoteDoc(q, s) {
+    var sub = quoteSubtotal(q), disc = Number(q.discount) || 0;
+    var rows = [
+      ['לכבוד', q.clientName],
+      ['תאריך', fmtDate(q.issueDate)],
+      q.eventType ? ['סוג האירוע', q.eventType] : null,
+      q.eventDate ? ['תאריך האירוע', fmtDate(q.eventDate)] : null,
+      q.location ? ['מיקום', q.location] : null,
+    ].filter(Boolean);
+    return el('div', { class: 'receipt-doc' }, [
+      bizHeader(s, 'הצעת מחיר', q.number),
+      el('div', {}, rows.map(function (r) {
+        return el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, [r[0]]), el('span', { class: 'v' }, [r[1]])]);
+      })),
+      el('table', { class: 'rd-items' }, [
+        el('thead', {}, [el('tr', {}, [el('th', {}, ['תיאור']), el('th', { class: 'num' }, ['כמות']), el('th', { class: 'num' }, ['מחיר']), el('th', { class: 'num' }, ['סה"כ'])])]),
+        el('tbody', {}, (q.items || []).map(function (it) {
+          return el('tr', {}, [
+            el('td', {}, [it.desc || '']),
+            el('td', { class: 'num' }, [String(it.qty)]),
+            el('td', { class: 'num' }, [fmtMoney(it.price)]),
+            el('td', { class: 'num' }, [fmtMoney((Number(it.qty) || 0) * (Number(it.price) || 0))]),
+          ]);
+        })),
+      ]),
+      disc ? el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['סכום ביניים']), el('span', { class: 'v' }, [fmtMoney(sub)])]) : null,
+      disc ? el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['הנחה']), el('span', { class: 'v', dir: 'ltr' }, ['-' + fmtMoney(disc)])]) : null,
+      el('div', { class: 'rd-amount' }, [
+        el('span', { class: 'k' }, ['סה"כ לתשלום']),
+        el('span', { class: 'v' }, [fmtMoney(quoteTotal(q))]),
+      ]),
+      q.validUntil ? el('div', { class: 'rd-valid' }, ['ההצעה בתוקף עד ' + fmtDate(q.validUntil)]) : null,
+      q.notes ? el('div', { class: 'rd-desc' }, [q.notes]) : null,
+      s.quoteTerms ? el('div', { class: 'rd-terms' }, [s.quoteTerms]) : null,
+      el('div', { class: 'rd-foot' }, ['עוסק פטור ממע"מ. ' + (s.businessName || 'Memories4U') + (s.phone ? ' · ' + ltr(s.phone) : '')]),
+    ]);
+  }
+
+  function quotePdfEntry(q, s) {
+    var key = 'q|' + JSON.stringify([q.id, q.number, q.clientName, q.eventType, q.eventDate, q.location, q.items, q.discount, q.issueDate, q.validUntil, q.notes,
+      s.businessName, s.idNumber, s.address, s.phone, s.email, s.quoteTerms]);
+    return getPdf(key, function () { return buildQuoteDoc(q, s); });
+  }
+
+  function renderQuoteDetail() {
+    var q = state.quotes.find(function (x) { return x.id === state.activeQuoteId; });
+    if (!q) return;
+    var s = state.settings || {};
+    var entry = quotePdfEntry(q, s);
+    var st = QUOTE_STATUS[q.status] || QUOTE_STATUS.draft;
+    var biz = s.businessName || 'Memories4U';
+    var msg = 'שלום ' + q.clientName + ', מצורפת הצעת מחיר מס\' ' + q.number + ' מ-' + biz +
+      (q.eventType ? ' ל' + q.eventType : '') + ' על סך ' + fmtMoney(quoteTotal(q)) + '. נשמח לעמוד לשירותכם!';
+    function close() { state.activeQuoteId = null; render(); }
+    var overlay = el('div', { class: 'overlay', id: 'quote-overlay', onclick: function (e) { if (e.target === overlay) close(); } }, [
+      el('div', { class: 'modal' }, [
+        el('div', { class: 'modal-head' }, [
+          el('h2', {}, ['הצעת מחיר #' + q.number, el('span', { class: 'chip ' + st.cls, style: 'margin-inline-start:10px;vertical-align:middle' }, [st.label])]),
+          el('button', { class: 'close-x', 'aria-label': 'סגירה', onclick: close }, ['✕']),
+        ]),
+        buildQuoteDoc(q, s),
+        el('div', { class: 'send-label' }, ['שליחה ללקוח']),
+        el('div', { class: 'modal-actions', style: 'margin-top:8px' }, sendBar({
+          entry: entry, fileName: 'הצעת-מחיר-' + q.number + '-Memories4U.pdf', title: 'הצעת מחיר מס\' ' + q.number,
+          phone: q.clientPhone, email: q.clientEmail, subject: 'הצעת מחיר מס\' ' + q.number + ' מ-' + biz, message: msg
+        }, function (ch) {
+          if (ch !== 'print' && q.status === 'draft') setQuoteStatus(q, 'sent', true);
+        })),
+        el('div', { class: 'send-label' }, ['ניהול']),
+        el('div', { class: 'modal-actions', style: 'margin-top:8px' }, [
+          el('button', { class: 'btn ghost', onclick: function () { quoteToReceipt(q); } }, ['הפקת קבלה מההצעה 🧾']),
+          el('button', { class: 'btn ghost', onclick: function () { openEditQuote(q); } }, ['עריכה ✎']),
+          el('select', {
+            class: 'btn ghost', 'aria-label': 'סטטוס ההצעה',
+            onchange: function (e) { setQuoteStatus(q, e.target.value); }
+          }, Object.keys(QUOTE_STATUS).map(function (k) {
+            return el('option', { value: k, selected: q.status === k ? 'selected' : null }, ['סטטוס ' + QUOTE_STATUS[k].label]);
+          })),
+          el('button', { class: 'btn danger', onclick: function () { deleteQuote(q); } }, ['מחיקה']),
+        ]),
+      ]),
+    ]);
+    document.body.appendChild(overlay);
+  }
+
+  async function setQuoteStatus(q, status, silent) {
+    if (!state.db) return;
+    try { await state.db.doc('quotes/' + q.id).update({ status: status }); if (!silent) showToast('הסטטוס עודכן'); }
+    catch (e) { if (!silent) showToast('שגיאה בעדכון'); }
+  }
+  async function deleteQuote(q) {
+    if (!confirm('למחוק את הצעת המחיר מס\' ' + q.number + '?')) return;
+    if (!state.db) return;
+    try { await state.db.doc('quotes/' + q.id).delete(); state.activeQuoteId = null; showToast('ההצעה נמחקה'); render(); }
+    catch (e) { showToast('שגיאה במחיקה'); }
+  }
+  function quoteToReceipt(q) {
+    var desc = (q.items || []).map(function (it) {
+      return (it.desc || '') + (Number(it.qty) !== 1 ? ' x' + it.qty : '');
+    }).filter(Boolean).join(', ');
+    if (q.eventType) desc = q.eventType + (desc ? ', ' + desc : '');
+    state.activeQuoteId = null;
+    openNewReceipt({
+      clientId: q.clientId || null, clientName: q.clientName || '', clientPhone: q.clientPhone || '', clientEmail: q.clientEmail || '',
+      description: desc, amount: String(quoteTotal(q)), eventDate: q.eventDate || todayIso(), fromQuoteId: q.id
+    });
   }
 
   function copyReceiptText(r, s) {
@@ -1252,6 +1767,7 @@
     field('כתובת', 'address', { full: true });
     field('הערת עוסק פטור (מופיעה בתחתית כל קבלה)', 'exemptNote', { full: true, textarea: true });
     field('מספר הקבלה הבא שיונפק', 'startNumber', { type: 'number' });
+    field('תנאים קבועים להצעות מחיר (מופיע בתחתית כל הצעה)', 'quoteTerms', { full: true, textarea: true });
 
     card.appendChild(grid);
     card.appendChild(el('div', { class: 'modal-actions' }, [
@@ -1284,6 +1800,7 @@
       clients: state.clients,
       receipts: state.receipts,
       expenses: state.expenses,
+      quotes: state.quotes,
     };
     var json = JSON.stringify(payload, null, 2);
     var fname = 'גיבוי-Memories4U-' + todayIso() + '.json';
@@ -1370,9 +1887,31 @@
   // ---------------- render root ----------------
   function render() {
     var root = document.getElementById('app');
+    // שומרים על השדה שבו מקלידים ועל מיקום הגלילה בחלון פתוח, כדי שהמסך לא "יקפוץ"
+    var fields = Array.prototype.slice.call(document.querySelectorAll('#app input, #app textarea, #app select'));
+    var active = document.activeElement;
+    var focusIdx = fields.indexOf(active);
+    var focusView = state.view;
+    var selStart = null, selEnd = null;
+    try { if (focusIdx > -1) { selStart = active.selectionStart; selEnd = active.selectionEnd; } } catch (e) {}
+    var ovScroll = {};
+    ['receipt-overlay', 'quote-overlay'].forEach(function (id) {
+      var o = document.getElementById(id); if (o) { ovScroll[id] = o.scrollTop; o.remove(); }
+    });
     root.innerHTML = '';
     closeOverlay();
-    var old = document.getElementById('receipt-overlay'); if (old) old.remove();
+    renderInner(root);
+    Object.keys(ovScroll).forEach(function (id) { var o = document.getElementById(id); if (o) o.scrollTop = ovScroll[id]; });
+    if (focusIdx > -1 && focusView === state.view) {
+      var nf = document.querySelectorAll('#app input, #app textarea, #app select')[focusIdx];
+      if (nf && nf.tagName === active.tagName) {
+        nf.focus({ preventScroll: true });
+        try { if (selStart != null) nf.setSelectionRange(selStart, selEnd); } catch (e) {}
+      }
+    }
+  }
+
+  function renderInner(root) {
 
     if (!state.authChecked) { return; }
     if (!state.user) { renderLogin(root); return; }
@@ -1391,12 +1930,15 @@
     else if (state.view === 'settings') renderSettingsPage(main);
     else if (state.view === 'newReceipt') renderNewReceipt(main);
     else if (state.view === 'newExpense') renderNewExpense(main);
+    else if (state.view === 'quotes') renderQuotesPage(main);
+    else if (state.view === 'newQuote') renderNewQuote(main);
 
     if (state.activeReceiptId) renderReceiptDetail();
+    if (state.activeQuoteId) renderQuoteDetail();
 
     if (state.toast) {
       root.appendChild(el('div', {
-        style: 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface-3);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:10px;box-shadow:var(--shadow);font-size:13.5px;z-index:60'
+        class: 'toast', style: 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface-3);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:10px;box-shadow:var(--shadow);font-size:13.5px;z-index:60'
       }, [state.toast]));
     }
   }
