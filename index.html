@@ -507,6 +507,7 @@
     activeQuoteId: null,
     quoteSearch: '',
     activeClientId: null,
+    refundDraft: null,
     receiptFilter: 'all',
     quoteFilter: 'all',
     view: 'dashboard',
@@ -551,7 +552,7 @@
 
   function fmtMoney(n) {
     n = Number(n) || 0;
-    return '₪' + n.toLocaleString('he-IL', { maximumFractionDigits: 0 });
+    return (n < 0 ? '-' : '') + '₪' + Math.abs(n).toLocaleString('he-IL', { maximumFractionDigits: 0 });
   }
   function fmtDate(iso) {
     if (!iso) return '';
@@ -725,7 +726,7 @@
     ];
     var isExpenseCtx = state.view === 'expenses' || state.view === 'newExpense';
     var isQuoteCtx = state.view === 'quotes' || state.view === 'newQuote';
-    var current = { newReceipt: 'receipts', newQuote: 'quotes', newExpense: 'expenses' }[state.view] || state.view;
+    var current = { newReceipt: 'receipts', newQuote: 'quotes', newExpense: 'expenses', newRefund: 'receipts' }[state.view] || state.view;
     root.appendChild(el('nav', { class: 'nav', 'aria-label': 'ניווט ראשי' }, [
       el('div', { class: 'brand' }, [
         el('div', { class: 'word' }, brandMark((state.settings && state.settings.businessName) || 'Memories4U')),
@@ -768,7 +769,7 @@
   function upcomingEvents() {
     var today = todayIso(), seen = {}, list = [];
     state.quotes.forEach(function (q) {
-      if (q.eventDate && q.eventDate >= today && q.status !== 'declined') {
+      if (q.eventDate && q.eventDate >= today && q.status !== 'declined' && q.status !== 'cancelled') {
         seen[q.id] = true;
         var k = quoteStatusKey(q);
         list.push({ date: q.eventDate, who: q.clientName, what: [q.eventType, q.location].filter(Boolean).join(', '), status: k,
@@ -776,7 +777,9 @@
       }
     });
     state.receipts.forEach(function (r) {
-      if (r.eventDate && r.eventDate >= today && !(r.fromQuoteId && seen[r.fromQuoteId])) {
+      if (r.fromQuoteId) return; // אירועים מהצעות מחיר מוצגים דרך ההצעה עצמה
+      if (r.kind === 'refund' || receiptStateKey(r) === 'cancelled') return;
+      if (r.eventDate && r.eventDate >= today) {
         list.push({ date: r.eventDate, who: r.clientName, what: r.description || '', status: 'receipt', open: function () { state.activeReceiptId = r.id; render(); } });
       }
     });
@@ -894,7 +897,7 @@
   // ---------------- receipts list ----------------
   function renderReceiptList(items, compact) {
     var rows = items.map(function (r) {
-      var paid = r.status === 'paid';
+      var rs = RECEIPT_STATE[receiptStateKey(r)];
       return el('div', {
         class: 'tr row', role: 'button', tabindex: '0',
         onclick: function () { state.activeReceiptId = r.id; render(); },
@@ -903,8 +906,8 @@
         el('div', { class: 'c-num' }, ['#' + r.number]),
         el('div', { class: 'c-main' }, [el('div', { class: 'n' }, [r.clientName || 'לקוח']), r.description ? el('div', { class: 'd' }, [r.description]) : null]),
         el('div', { class: 'c-date' }, [fmtDate(r.issueDate)]),
-        el('div', { class: 'c-st' }, [el('span', { class: 'chip ' + (paid ? 'paid' : 'pending') }, [paid ? 'שולם' : 'ממתין'])]),
-        el('div', { class: 'c-amt' }, [fmtMoney(r.amount)]),
+        el('div', { class: 'c-st' }, [el('span', { class: 'chip ' + rs.cls }, [rs.label])]),
+        el('div', { class: 'c-amt' + (r.amount < 0 ? ' neg' : ''), dir: r.amount < 0 ? 'ltr' : null }, [fmtMoney(r.amount)]),
       ]);
     });
     return el('div', { class: 'tbl receipts' + (compact ? ' compact' : '') }, [
@@ -923,14 +926,16 @@
     ]));
     main.appendChild(el('div', { class: 'toolbar' }, [
       searchBox(state.listSearch, 'חיפוש לפי לקוח, תיאור או מספר', function (e) { state.listSearch = e.target.value; render(); }),
-      el('div', { class: 'seg', role: 'group', 'aria-label': 'סינון לפי סטטוס' }, [['all', 'הכל'], ['paid', 'שולם'], ['pending', 'ממתין']].map(function (o) {
+      el('div', { class: 'seg', role: 'group', 'aria-label': 'סינון לפי סטטוס' }, [['all', 'הכל'], ['paid', 'שולם'], ['pending', 'ממתין'], ['cancel', 'ביטולים']].map(function (o) {
         return el('button', { class: f === o[0] ? 'on' : '', 'aria-pressed': f === o[0] ? 'true' : 'false', onclick: function () { state.receiptFilter = o[0]; render(); } }, [o[1]]);
       })),
     ]));
     var q = (state.listSearch || '').trim().toLowerCase();
     var items = state.receipts.filter(function (r) {
-      if (f === 'paid' && r.status !== 'paid') return false;
-      if (f === 'pending' && r.status === 'paid') return false;
+      var k = receiptStateKey(r);
+      if (f === 'paid' && k !== 'paid') return false;
+      if (f === 'pending' && k !== 'pending') return false;
+      if (f === 'cancel' && ['refund', 'cancelled', 'partial'].indexOf(k) < 0) return false;
       if (!q) return true;
       return (r.clientName || '').toLowerCase().indexOf(q) > -1 ||
              (r.description || '').toLowerCase().indexOf(q) > -1 ||
@@ -949,7 +954,7 @@
     var rows = [['מספר', 'תאריך', 'לקוח', 'תיאור', 'סכום', 'אופן תשלום', 'סטטוס']];
     state.receipts.slice().sort(function (a, b) { return a.number - b.number; }).forEach(function (r) {
       rows.push([r.number, fmtDate(r.issueDate), r.clientName || '', (r.description || '').replace(/\n/g, ' '),
-        r.amount, PAY_METHODS[r.method] || r.method, r.status === 'paid' ? 'שולם' : 'ממתין']);
+        r.amount, r.method === 'none' ? 'ללא' : (PAY_METHODS[r.method] || r.method), RECEIPT_STATE[receiptStateKey(r)].label]);
     });
     var csv = '﻿' + rows.map(function (row) {
       return row.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
@@ -1338,31 +1343,36 @@
     var r = state.receipts.find(function (x) { return x.id === state.activeReceiptId; });
     if (!r) return;
     var s = state.settings || {};
-    var paid = r.status === 'paid';
+    var rs = RECEIPT_STATE[receiptStateKey(r)];
+    var isRefund = r.kind === 'refund';
+    var leftToRefund = isRefund ? 0 : Math.max(0, (Number(r.amount) || 0) - refundedAmount(r));
     var overlay = el('div', {
       class: 'overlay', onclick: function (e) { if (e.target === overlay) { state.activeReceiptId = null; render(); } }
     }, [
       el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'קבלה ' + r.number }, [
         el('div', { class: 'modal-head' }, [
-          el('h2', {}, ['קבלה ' + r.number, el('span', { class: 'chip ' + (paid ? 'paid' : 'pending') }, [paid ? 'שולם' : 'ממתין לתשלום'])]),
+          el('h2', {}, [(isRefund ? 'קבלה שלילית ' : 'קבלה ') + r.number, el('span', { class: 'chip ' + rs.cls }, [rs.label === 'ממתין' ? 'ממתין לתשלום' : rs.label])]),
           el('button', { class: 'close-x', 'aria-label': 'סגירה', onclick: function () { state.activeReceiptId = null; render(); } }, [icon('close')]),
         ]),
         el('div', { class: 'sheet' }, [buildReceiptDoc(r, s)]),
+        refundBox(r),
         el('div', { class: 'action-panel' }, [
         el('div', { class: 'send-label' }, ['שליחה ללקוח']),
         el('div', { class: 'modal-actions', style: 'margin-top:8px' }, sendBar({
           entry: receiptPdfEntry(r, s), fileName: pdfFileName(r), title: 'קבלה מס\' ' + r.number,
           phone: r.clientPhone, email: r.clientEmail,
           subject: 'קבלה מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U'),
-          message: 'שלום ' + r.clientName + ', מצורפת קבלה מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U') + ' על סך ' + fmtMoney(r.amount) + '. תודה רבה!'
+          message: isRefund
+            ? 'שלום ' + r.clientName + ', מצורפת קבלה שלילית מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U') + ' על החזר של ' + fmtMoney(Math.abs(r.amount)) + ', לביטול קבלה מס\' ' + r.refundOfNumber + '.'
+            : 'שלום ' + r.clientName + ', מצורפת קבלה מס\' ' + r.number + ' מ-' + (s.businessName || 'Memories4U') + ' על סך ' + fmtMoney(r.amount) + '. תודה רבה!'
         })),
         el('div', { class: 'send-label' }, ['ניהול']),
         el('div', { class: 'modal-actions', style: 'margin-top:8px' }, [
-          r.status === 'pending'
+          isRefund || refundsOf(r).length ? null : (r.status === 'pending'
             ? btn('', 'check', 'סימון כשולם', function () { setReceiptStatus(r, 'paid'); })
-            : btn('', null, 'סימון כממתין', function () { setReceiptStatus(r, 'pending'); }),
+            : btn('', null, 'סימון כממתין', function () { setReceiptStatus(r, 'pending'); })),
           btn('', 'copy', 'העתקת טקסט', function () { copyReceiptText(r, s); }),
-          btn('danger', 'trash', 'מחיקה', function () { deleteReceipt(r); }),
+          leftToRefund > 0 ? btn('danger', null, 'ביטול או החזר כספי', function () { openRefund(r); }) : null,
         ]),
         ]),
       ]),
@@ -1372,6 +1382,7 @@
   }
 
   function buildReceiptDoc(r, s) {
+    if (r.kind === 'refund') return buildRefundDoc(r, s);
     return el('div', { class: 'receipt-doc' }, [
       el('div', { class: 'rd-head' }, [
         el('div', {}, [
@@ -1402,6 +1413,29 @@
     ]);
   }
 
+  function buildRefundDoc(r, s) {
+    var row = function (k, v) { return el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, [k]), el('span', { class: 'v' }, [v])]); };
+    return el('div', { class: 'receipt-doc' }, [
+      el('div', { class: 'rd-head' }, [
+        el('div', {}, [el('div', { class: 'rd-brand' }, brandMark(s.businessName)), bizLinesEl(s)]),
+        el('div', { class: 'rd-title' }, [el('div', { class: 't' }, ['קבלה שלילית']), el('div', { class: 'n' }, ['מס\' ' + r.number])]),
+      ]),
+      el('div', {}, [
+        row('לכבוד', r.clientName),
+        row('תאריך הפקה', fmtDate(r.issueDate)),
+        row('מבטלת את קבלה', 'מס\' ' + r.refundOfNumber + (r.refundOfDate ? ' מתאריך ' + fmtDate(r.refundOfDate) : '')),
+        row('אופן ההחזר', r.method === 'none' ? 'ללא החזר כספי' : (PAY_METHODS[r.method] || r.method)),
+      ]),
+      r.description ? el('div', { class: 'rd-desc' }, [r.description]) : null,
+      el('div', { class: 'rd-amount' }, [
+        el('span', { class: 'k' }, [r.method === 'none' ? 'סכום שבוטל' : 'סכום שהוחזר']),
+        el('span', { class: 'v' }, [fmtMoney(Math.abs(r.amount))]),
+      ]),
+      el('div', { class: 'rd-valid' }, ['סכום זה מקזז את קבלה מס\' ' + r.refundOfNumber + '.']),
+      el('div', { class: 'rd-foot' }, [s.exemptNote || DEFAULT_EXEMPT_NOTE]),
+    ]);
+  }
+
   // ---------------- PDF ----------------
   var LIBS = [
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
@@ -1424,7 +1458,7 @@
 
   var pdfCache = {};
   function pdfKey(r, s) {
-    return [r.id, r.number, r.status, r.amount, r.method, r.clientName, r.description, r.issueDate, r.eventDate, r.dealTotal, r.balanceAfter,
+    return [r.id, r.number, r.status, r.amount, r.method, r.clientName, r.description, r.issueDate, r.eventDate, r.dealTotal, r.balanceAfter, r.kind, r.refundOfNumber,
       s.businessName, s.idNumber, s.address, s.phone, s.email, s.exemptNote].join('|');
   }
   function pdfFileName(r) { return 'קבלה-' + r.number + '-Memories4U.pdf'; }
@@ -1605,8 +1639,9 @@
     declined: { label: 'לא אושרה', cls: 'declined' },
     deposit: { label: 'מקדמה התקבלה', cls: 'pending' },
     paid: { label: 'שולמה במלואה', cls: 'paid' },
+    cancelled: { label: 'הלקוח ביטל', cls: 'declined' },
   };
-  var MANUAL_STATUSES = ['draft', 'sent', 'approved', 'declined'];
+  var MANUAL_STATUSES = ['draft', 'sent', 'approved', 'declined', 'cancelled'];
   function addDaysIso(iso, days) {
     var d = new Date(iso + 'T12:00:00');
     d.setDate(d.getDate() + days);
@@ -1624,6 +1659,7 @@
   function quotePaid(q) { return quotePayments(q).reduce(function (sum, r) { return sum + (Number(r.amount) || 0); }, 0); }
   function quoteBalance(q) { return Math.max(0, quoteTotal(q) - quotePaid(q)); }
   function quoteStatusKey(q) {
+    if (q.status === 'cancelled') return 'cancelled';
     var paid = quotePaid(q);
     if (paid > 0) return paid >= quoteTotal(q) ? 'paid' : 'deposit';
     return q.status || 'draft';
@@ -1960,7 +1996,7 @@
         el('div', { class: 'send-label' }, ['ניהול']),
         el('div', { class: 'modal-actions', style: 'margin-top:8px' }, [
           btn('', 'edit', 'עריכה', function () { openEditQuote(q); }),
-          quotePaid(q) ? null : el('select', {
+          el('select', {
             class: 'btn ghost', 'aria-label': 'סטטוס ההצעה',
             onchange: function (e) { setQuoteStatus(q, e.target.value); }
           }, MANUAL_STATUSES.map(function (k) {
@@ -1980,6 +2016,10 @@
     catch (e) { if (!silent) showToast('שגיאה בעדכון'); }
   }
   async function deleteQuote(q) {
+    if (state.receipts.some(function (r) { return r.fromQuoteId === q.id; })) {
+      showToast('להצעה הזו יש קבלות, ולכן אי אפשר למחוק אותה. אפשר לסמן שהלקוח ביטל.');
+      return;
+    }
     if (!confirm('למחוק את הצעת המחיר מס\' ' + q.number + '?')) return;
     if (!state.db) return;
     try { await state.db.doc('quotes/' + q.id).delete(); state.activeQuoteId = null; showToast('ההצעה נמחקה'); render(); }
@@ -2014,6 +2054,16 @@
     var pays = quotePayments(q);
     var pct = total ? Math.min(100, Math.round(paid / total * 100)) : 0;
     var actions;
+    if (q.status === 'cancelled') {
+      return el('div', { class: 'pay-box' }, [el('div', { class: 'pay-top' }, [
+        el('span', { class: 'k' }, [paid ? 'הלקוח ביטל. נשאר אצלך ' + fmtMoney(paid) + '. אם צריך להחזיר כסף, פותחים את הקבלה ולוחצים ביטול או החזר כספי.' : 'הלקוח ביטל את האירוע.']),
+      ]), pays.length ? el('div', { class: 'pay-list' }, pays.map(function (r) {
+        return el('button', { class: 'pay-item', onclick: function () { state.activeQuoteId = null; state.activeReceiptId = r.id; render(); } }, [
+          el('span', {}, [(r.kind === 'refund' ? 'קבלה שלילית ' : 'קבלה ') + r.number + ', ' + fmtDate(r.issueDate)]),
+          el('span', { dir: 'ltr' }, [fmtMoney(r.amount)]),
+        ]);
+      })) : null]);
+    }
     if (!paid) {
       actions = [
         btn('primary', 'receipt', 'קבלה על מקדמה' + (Number(q.deposit) > 0 ? ' ' + fmtMoney(q.deposit) : ''), function () { quoteToReceipt(q, 'deposit'); }),
@@ -2033,8 +2083,8 @@
         el('div', { class: 'pay-bar', role: 'progressbar', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, [el('i', { style: 'width:' + pct + '%' })]),
         el('div', { class: 'pay-list' }, pays.map(function (r) {
           return el('button', { class: 'pay-item', onclick: function () { state.activeQuoteId = null; state.activeReceiptId = r.id; render(); } }, [
-            el('span', {}, ['קבלה ' + r.number + ', ' + (r.kind === 'deposit' ? 'מקדמה' : r.kind === 'balance' ? 'יתרה' : 'תשלום') + ', ' + fmtDate(r.issueDate)]),
-            el('span', {}, [fmtMoney(r.amount)]),
+            el('span', {}, [(r.kind === 'refund' ? 'קבלה שלילית ' : 'קבלה ') + r.number + ', ' + (r.kind === 'deposit' ? 'מקדמה' : r.kind === 'balance' ? 'יתרה' : r.kind === 'refund' ? 'החזר' : 'תשלום') + ', ' + fmtDate(r.issueDate)]),
+            el('span', { dir: 'ltr' }, [fmtMoney(r.amount)]),
           ]);
         })),
       ]) : el('div', { class: 'pay-top' }, [
@@ -2066,11 +2116,160 @@
     try { await state.db.doc('receipts/' + r.id).update({ status: status }); showToast('הסטטוס עודכן'); }
     catch (e) { showToast('שגיאה בעדכון'); }
   }
-  async function deleteReceipt(r) {
-    if (!confirm('למחוק את קבלה מס\' ' + r.number + '? לא ניתן לשחזר.')) return;
-    if (!state.db) return;
-    try { await state.db.doc('receipts/' + r.id).delete(); state.activeReceiptId = null; showToast('הקבלה נמחקה'); render(); }
-    catch (e) { showToast('שגיאה במחיקה'); }
+  // ---------------- cancellation / refund (קבלה שלילית) ----------------
+  // לא מוחקים קבלה. ביטול או החזר נעשים בקבלה שלילית עם המספר הבא ברצף, שמקזזת את המקורית.
+  function refundsOf(r) {
+    return state.receipts.filter(function (x) { return x.kind === 'refund' && x.refundOf === r.id; })
+      .sort(function (a, b) { return a.number - b.number; });
+  }
+  function refundedAmount(r) {
+    return refundsOf(r).reduce(function (sum, x) { return sum + Math.abs(Number(x.amount) || 0); }, 0);
+  }
+  function receiptStateKey(r) {
+    if (r.kind === 'refund') return 'refund';
+    var ref = refundedAmount(r);
+    if (ref > 0) return ref >= (Number(r.amount) || 0) ? 'cancelled' : 'partial';
+    return r.status === 'paid' ? 'paid' : 'pending';
+  }
+  var RECEIPT_STATE = {
+    paid: { label: 'שולם', cls: 'paid' },
+    pending: { label: 'ממתין', cls: 'pending' },
+    refund: { label: 'קבלה שלילית', cls: 'declined' },
+    cancelled: { label: 'בוטלה', cls: 'declined' },
+    partial: { label: 'הוחזר חלקית', cls: 'pending' },
+  };
+
+  function openRefund(r) {
+    var left = Math.max(0, (Number(r.amount) || 0) - refundedAmount(r));
+    state.refundDraft = {
+      originalId: r.id, full: true, amount: String(left), max: left,
+      method: r.method || 'transfer', issueDate: todayIso(), reason: ''
+    };
+    state.activeReceiptId = null;
+    state.view = 'newRefund';
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function renderNewRefund(main) {
+    var d = state.refundDraft;
+    var r = d && state.receipts.find(function (x) { return x.id === d.originalId; });
+    if (!r) { state.view = 'receipts'; renderReceiptsPage(main); return; }
+    main.appendChild(el('div', { class: 'page-head' }, [el('div', {}, [
+      el('h1', {}, ['ביטול או החזר כספי']),
+      el('div', { class: 'hint' }, ['עבור קבלה מס\' ' + r.number + ', ' + r.clientName + ', ' + fmtMoney(r.amount) + ' מתאריך ' + fmtDate(r.issueDate)]),
+    ])]));
+    main.appendChild(el('div', { class: 'notice' }, [el('div', { class: 'txt' }, [icon('shield'),
+      'הקבלה המקורית לא נמחקת. תיווצר קבלה שלילית עם המספר הבא ברצף, והיא תקזז את הסכום שמוחזר.'])]));
+
+    var card = el('div', { class: 'card form-card' }, []);
+    var grid = el('div', { class: 'form-grid' }, []);
+    grid.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['סוג הביטול']),
+      el('div', { class: 'chip-toggle' }, [
+        el('button', { class: d.full ? 'active' : '', onclick: function () { d.full = true; d.amount = String(d.max); render(); } }, ['ביטול מלא, ' + fmtMoney(d.max)]),
+        el('button', { class: d.full ? '' : 'active', onclick: function () { d.full = false; render(); } }, ['החזר חלקי']),
+      ]),
+    ]));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['סכום שמוחזר ללקוח']),
+      el('div', { class: 'amount-wrap' }, [
+        el('span', { class: 'sign' }, ['₪']),
+        el('input', {
+          type: 'number', inputmode: 'decimal', min: '0', value: d.amount, disabled: d.full ? 'disabled' : null,
+          oninput: function (e) { d.amount = e.target.value; }
+        }),
+      ]),
+    ]));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['איך הוחזר הכסף']),
+      el('select', { onchange: function (e) { d.method = e.target.value; } },
+        Object.keys(PAY_METHODS).map(function (k) {
+          return el('option', { value: k, selected: d.method === k ? 'selected' : null }, [PAY_METHODS[k]]);
+        }).concat([el('option', { value: 'none', selected: d.method === 'none' ? 'selected' : null }, ['לא הוחזר כסף, רק ביטול המסמך'])])),
+    ]));
+    grid.appendChild(el('div', { class: 'field' }, [
+      el('label', {}, ['תאריך']),
+      el('input', { type: 'date', value: d.issueDate, oninput: function (e) { d.issueDate = e.target.value; } }),
+    ]));
+    grid.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['סיבה (מופיע בקבלה השלילית, לא חובה)']),
+      el('input', { value: d.reason, placeholder: 'למשל: האירוע בוטל, החזר מקדמה בניכוי דמי ביטול', oninput: function (e) { d.reason = e.target.value; } }),
+    ]));
+    card.appendChild(grid);
+    card.appendChild(el('div', { class: 'modal-actions' }, [
+      btn('primary', 'receipt', state.saving ? 'מפיק...' : 'הפקת קבלה שלילית', saveRefund, { disabled: state.saving ? 'disabled' : null }),
+      btn('', null, 'ביטול', function () { state.view = 'receipts'; state.activeReceiptId = r.id; render(); }),
+    ]));
+    main.appendChild(card);
+  }
+
+  async function saveRefund() {
+    var d = state.refundDraft;
+    if (state.saving || !d) return;
+    var r = state.receipts.find(function (x) { return x.id === d.originalId; });
+    if (!r) return;
+    var amt = d.full ? d.max : Number(d.amount);
+    if (!(amt > 0)) { showToast('צריך למלא סכום גדול מ-0'); return; }
+    if (amt > d.max) { showToast('אפשר להחזיר עד ' + fmtMoney(d.max)); return; }
+    if (!confirm('להפיק קבלה שלילית על ' + fmtMoney(amt) + ' לביטול קבלה מס\' ' + r.number + '? אי אפשר למחוק אותה אחר כך.')) return;
+    if (!state.db) { showToast('צריך להתחבר כדי לשמור'); return; }
+    state.saving = true; render();
+    try {
+      var ref = state.db.collection('receipts').doc();
+      var partial = amt < (Number(r.amount) || 0) || refundedAmount(r) > 0;
+      var number = await state.db.runTransaction(function (tx) {
+        var sref = state.db.doc('settings/business');
+        return tx.get(sref).then(function (snap) {
+          var sd = snap.exists ? snap.data() : {};
+          var n = Number(sd.nextNumber) || Number(sd.startNumber) || 1;
+          tx.set(sref, { nextNumber: n + 1 }, { merge: true });
+          tx.set(ref, {
+            number: n, kind: 'refund', refundOf: r.id, refundOfNumber: r.number, refundOfDate: r.issueDate || '',
+            clientId: r.clientId || null, clientName: r.clientName || '', clientPhone: r.clientPhone || '', clientEmail: r.clientEmail || '',
+            description: (amt < d.max ? 'החזר חלקי עבור קבלה מס\' ' : partial ? 'ביטול יתרת קבלה מס\' ' : 'ביטול קבלה מס\' ') + r.number + (d.reason ? '. ' + d.reason : ''),
+            amount: -Math.abs(amt), method: d.method, status: 'paid',
+            fromQuoteId: r.fromQuoteId || null, quoteNumber: r.quoteNumber || null,
+            eventDate: r.eventDate || '', issueDate: d.issueDate || todayIso(), notes: '',
+            createdAt: Date.now(), createdBy: (state.user && state.user.email) || ''
+          });
+          return n;
+        });
+      });
+      state.saving = false;
+      state.view = 'receipts';
+      state.activeReceiptId = ref.id;
+      render();
+      showToast('קבלה שלילית מס\' ' + number + ' הופקה');
+    } catch (e) {
+      state.saving = false; render();
+      showToast('שגיאה בהפקת הקבלה השלילית, נסו שוב');
+    }
+  }
+
+  function refundBox(r) {
+    if (r.kind === 'refund') {
+      var orig = state.receipts.find(function (x) { return x.id === r.refundOf; });
+      return el('div', { class: 'pay-box' }, [el('div', { class: 'pay-top' }, [
+        el('span', { class: 'k' }, ['קבלה שלילית שמקזזת את קבלה מס\' ' + r.refundOfNumber]),
+        orig ? btn('small', null, 'לקבלה המקורית', function () { state.activeReceiptId = orig.id; render(); }) : null,
+      ])]);
+    }
+    var refs = refundsOf(r);
+    if (!refs.length) return null;
+    var left = Math.max(0, (Number(r.amount) || 0) - refundedAmount(r));
+    return el('div', { class: 'pay-box' }, [
+      el('div', { class: 'pay-top' }, [
+        el('span', { class: 'k' }, ['הוחזר ', el('b', {}, [fmtMoney(refundedAmount(r))]), ' מתוך ' + fmtMoney(r.amount)]),
+        el('span', { class: 'bal' + (left ? '' : ' done') }, [left ? 'נשאר בקבלה ' + fmtMoney(left) : 'הקבלה בוטלה במלואה']),
+      ]),
+      el('div', { class: 'pay-list' }, refs.map(function (x) {
+        return el('button', { class: 'pay-item', onclick: function () { state.activeReceiptId = x.id; render(); } }, [
+          el('span', {}, ['קבלה שלילית ' + x.number + ', ' + fmtDate(x.issueDate)]),
+          el('span', {}, [fmtMoney(Math.abs(x.amount))]),
+        ]);
+      })),
+    ]);
   }
 
   // ---------------- settings ----------------
@@ -2281,6 +2480,7 @@
     else if (state.view === 'settings') renderSettingsPage(main);
     else if (state.view === 'newReceipt') renderNewReceipt(main);
     else if (state.view === 'newExpense') renderNewExpense(main);
+    else if (state.view === 'newRefund') renderNewRefund(main);
     else if (state.view === 'quotes') renderQuotesPage(main);
     else if (state.view === 'newQuote') renderNewQuote(main);
 
