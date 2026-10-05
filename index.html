@@ -346,6 +346,26 @@
   .receipt-doc .rd-desc.rich, .receipt-doc .rd-terms.rich, .terms-preview .txt.rich { white-space: normal; }
   .terms-preview { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; background: var(--panel-2); border: 1px dashed #D3D8E1; border-radius: var(--r-md); padding: 12px 14px; }
   .terms-preview .btn { white-space: nowrap; flex: 0 0 auto; }
+  .disc-or { font-size: 13px; color: var(--muted); }
+  .disc-chips { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .disc-chip { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--ink-2); }
+  .disc-chip:hover { border-color: #CDD2DC; }
+  .disc-chip.on { background: var(--blue-wash); border-color: #C9D4FB; color: var(--blue); font-weight: 600; }
+  label.check { display: flex; align-items: center; gap: 10px; font-size: 14.5px; color: var(--ink); cursor: pointer; margin-bottom: 4px; }
+  label.check input { width: 18px; height: 18px; accent-color: var(--blue); }
+  .receipt-doc tr.addon td { color: #3E4A62; }
+  .receipt-doc .addon-tag { display: inline-block; margin-inline-start: 8px; font-size: 11px; font-weight: 600; color: #2347D8; background: #EDF1FE; border-radius: 99px; padding: 1px 8px; vertical-align: 1px; }
+  .receipt-doc .rd-section { margin-top: 22px; }
+  .receipt-doc .rd-sec-title { font-size: 15px; font-weight: 600; color: #0F1D33; margin-bottom: 8px; }
+  .receipt-doc .rd-pkg { font-size: 13.5px; line-height: 1.7; color: #0F1D33; }
+  .receipt-doc .rd-pay { margin-top: 18px; border: 1px solid #D6DEFB; background: #F7F9FF; border-radius: 10px; padding: 14px 16px; }
+  .receipt-doc .rd-pay .rd-sec-title { color: #1A36A6; font-size: 14px; margin-bottom: 6px; }
+  .receipt-doc .rd-pay-body { font-size: 13.5px; line-height: 1.7; }
+  .receipt-doc .rd-qr { margin-top: 22px; padding-top: 16px; border-top: 1px solid #EEF0F4; text-align: center; }
+  .receipt-doc .rd-qr-title { font-size: 13px; color: #3E4A62; margin-bottom: 12px; }
+  .receipt-doc .rd-qr-row { display: flex; justify-content: center; gap: 28px; }
+  .receipt-doc .rd-qr-item { font-size: 12px; color: #3E4A62; font-weight: 500; }
+  .receipt-doc .rd-qr-item img { width: 92px; height: 92px; display: block; margin: 0 auto 6px; border-radius: 6px; }
   .terms-preview .txt { white-space: pre-line; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
   .pay-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; margin-top: 18px; box-shadow: var(--lift); }
   .pay-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -600,7 +620,24 @@
     state.settingsLoaded = true; render();
   }
 
+  // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
+  var APP_VERSION = '2026-10-05-6';
+  function checkForUpdate() {
+    try {
+      fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+        var m = /var APP_VERSION = '([^']+)'/.exec(t);
+        if (!m || m[1] === APP_VERSION) return;
+        // לא מרעננים באמצע מילוי טופס, כדי לא לאבד מה שהוקלד
+        if (['newReceipt', 'newQuote', 'newExpense', 'newRefund', 'settings'].indexOf(state.view) > -1 || state.saving) return;
+        if (new URLSearchParams(location.search).get('v') === m[1]) return;
+        location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   function boot() {
+    checkForUpdate();
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) checkForUpdate(); });
     render();
     auth.getRedirectResult().catch(function (e) { state.loginError = loginErrorText(e); render(); });
     auth.onAuthStateChanged(function (user) {
@@ -1506,7 +1543,7 @@
   async function makePdfNow(buildFn) {
     await loadPdfLibs();
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
-    var holder = el('div', { dir: 'rtl', class: 'pdf-holder', style: 'position:fixed;left:-10000px;top:0;width:760px;background:#fff;padding:36px;font-family:Heebo,sans-serif' }, [buildFn()]);
+    var holder = el('div', { dir: 'rtl', class: 'pdf-holder', style: 'position:fixed;left:-10000px;top:0;width:760px;background:#fff;padding:36px;font-family:\'IBM Plex Sans Hebrew\',sans-serif' }, [buildFn()]);
     document.body.appendChild(holder);
     try {
       var canvas = await window.html2canvas(holder, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
@@ -1519,16 +1556,28 @@
       if (h <= maxH) {
         doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, w, h);
       } else {
-        // מסמך ארוך, מחלקים לכמה עמודים
+        // מסמך ארוך, מחלקים לכמה עמודים. חותכים רק בשורה לבנה כדי לא לחתוך טקסט באמצע
         var sliceH = Math.floor(canvas.width * maxH / w);
-        for (var y = 0, page = 0; y < canvas.height; y += sliceH, page++) {
+        var full = canvas.getContext('2d');
+        var sideM = Math.round(canvas.width * 0.08);
+        var isBlankRow = function (yy) {
+          var px = full.getImageData(sideM, yy, canvas.width - sideM * 2, 1).data;
+          for (var k = 0; k < px.length; k += 4) { if (px[k] < 240 || px[k + 1] < 240 || px[k + 2] < 240) return false; }
+          return true;
+        };
+        for (var y = 0, page = 0; y < canvas.height; page++) {
+          var end = Math.min(y + sliceH, canvas.height);
+          if (end < canvas.height) {
+            for (var t = end; t > end - Math.floor(sliceH * 0.25); t -= 2) { if (isBlankRow(t)) { end = t; break; } }
+          }
           var part = document.createElement('canvas');
-          part.width = canvas.width; part.height = Math.min(sliceH, canvas.height - y);
+          part.width = canvas.width; part.height = end - y;
           var ctx = part.getContext('2d');
           ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, part.width, part.height);
           ctx.drawImage(canvas, 0, y, canvas.width, part.height, 0, 0, canvas.width, part.height);
           if (page) doc.addPage();
           doc.addImage(part.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, w, part.height * w / canvas.width);
+          y = end;
         }
       }
       return doc.output('blob');
@@ -1611,7 +1660,9 @@
     if (!o.entry || !o.entry.blob) { showToast('ה-PDF עדיין בהכנה, רגע אחד'); return false; }
     var file = null;
     try { file = new File([o.entry.blob], o.fileName, { type: 'application/pdf' }); } catch (e) {}
-    if (file && canShareFiles()) {
+    // בטלפון ובאייפד: תפריט השיתוף עם הקובץ מצורף. במחשב: פותחים ישר את וואטסאפ או Gmail
+    var touch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1;
+    if (file && touch && canShareFiles()) {
       navigator.share({ files: [file], title: o.title }).catch(function (e) {
         if (e && e.name === 'AbortError') return;
         fallback();
@@ -1625,13 +1676,16 @@
       saveFile(o.fileName, o.entry.blob);
       if (channel === 'wa') {
         var ph = waPhone(o.phone);
-        var url = 'https://wa.me/' + (ph.length >= 11 ? ph : '') + '?text=' + encodeURIComponent(o.message);
+        var url = 'https://web.whatsapp.com/send?' + (ph.length >= 11 ? 'phone=' + ph + '&' : '') + 'text=' + encodeURIComponent(o.message);
         window.open(url, '_blank', 'noopener');
-        showToast('ה-PDF ירד למחשב. גררו אותו לצ\'אט בוואטסאפ');
+        showToast('ה-PDF ירד לתיקיית ההורדות. בצ\'אט שנפתח גוררים אותו פנימה ולוחצים שליחה');
       } else if (channel === 'mail') {
         var to = isEmail(o.email) ? o.email.trim() : '';
-        location.href = 'mailto:' + to + '?subject=' + encodeURIComponent(o.subject) + '&body=' + encodeURIComponent(o.message);
-        showToast('ה-PDF ירד למחשב. צרפו אותו למייל');
+        var gmail = 'https://mail.google.com/mail/?' +
+          (state.user && state.user.email ? 'authuser=' + encodeURIComponent(state.user.email) + '&' : '') +
+          'view=cm&fs=1&to=' + encodeURIComponent(to) + '&su=' + encodeURIComponent(o.subject) + '&body=' + encodeURIComponent(o.message);
+        window.open(gmail, '_blank', 'noopener');
+        showToast('ה-PDF ירד לתיקיית ההורדות. במייל שנפתח גוררים אותו פנימה ולוחצים שליחה');
       } else {
         showToast('ה-PDF ירד למחשב');
       }
@@ -1646,7 +1700,7 @@
       el('button', { class: 'btn wa', disabled: ready ? null : 'disabled', onclick: function () { go('wa'); } }, [icon('whatsapp'), ready ? 'וואטסאפ' : wait]),
       el('button', { class: 'btn primary', disabled: ready ? null : 'disabled', onclick: function () { go('mail'); } }, [icon('mail'), ready ? 'מייל' : wait]),
       btn('', 'print', 'הדפסה', function () { window.print(); if (onSent) onSent('print'); }),
-      ready && !canShareFiles() ? btn('', 'download', 'הורדת PDF', function () { saveFile(o.fileName, o.entry.blob); }) : null,
+      el('button', { class: 'btn', disabled: ready ? null : 'disabled', onclick: function () { saveFile(o.fileName, o.entry.blob); showToast('ה-PDF נשמר בתיקיית ההורדות'); } }, [icon('download'), 'הורדה למחשב']),
     ];
   }
 
@@ -1745,6 +1799,15 @@
     return el('div', { class: 'rich-editor' }, [bar, area]);
   }
 
+  // נוסח ברירת מחדל ל'מה כלול בחבילה' (אפשר לשנות בהגדרות ובכל הצעה)
+  var DEFAULT_PACKAGE_HTML = "<div>✨ שני אנשי צוות מקצועיים ואדיבים בעמדה בין 19:30 ל־23:00, מקבלת הפנים ועד רחבת הריקודים.</div><div><br></div><div>🖨️ צילומים והדפסות ללא הגבלה, לבחירה בצבע או בשחור־לבן. לחתן ולכלה שומרים הפתעה, תמונה אישית בפורמט רחב וגדול של 4 על 6 אינץ', כפול מגודל הסטריפ הרגיל של האורחים.</div><div><br></div><div>📲 שליחת התמונות וה־GIF ישירות לנייד של האורחים, דרך סריקת קוד QR ומשם כל אורח בוחר איך לקבל אותן אצלו, AirDrop, וואטסאפ, הודעות, מייל, או שמירה ישירה לגלריה.</div><div><br></div><div>🔗 כבר למחרת תקבלו לינק עם כל התמונות שצולמו בעמדה.</div><div><br></div><div>אנחנו מקפידים על תמונות באיכות גבוהה ועל עמדה במראה נקי ואלגנטי, ציוד מקצועי ברמת סטודיו שנראה כמו חלק מהעיצוב של האירוע שלכם, זה לא עוד תוספת שתולים עליו.</div>";
+  // קודי QR מהאתר (assets/img/qr-*.png), מוטמעים כדי שיופיעו גם ב-PDF
+  var QR_CODES = [
+    { label: 'אינסטגרם', src: 'data:image/png;base64,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' },
+    { label: 'טיקטוק', src: 'data:image/png;base64,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LiRXll337Ug/d/P9eUJl1fbEt3niE1Wu5747edZ3ZJ/5OacsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABHy831/T74EBNy+7Vj5R5SqdUFn0nf3e913P59yfT1hyBgAYIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGfr4jKcuas2Q3Y2eXhfZ/o5vd5womrVPldqqyCuz833XUnOGUBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgILPk/NzsGucJlW3VyvJw5dWfm112rTxx++6lE27+RPtefR+nLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAAQsXHJ+7ub928oK63M377XO7nLP2rc8fGIR/cSr7/ub+77NfZyyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAEHD1kvPNKhuws++zsq1a+UT7Fn1PXPkTa9vPX33fHVL5talsU89yygIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAJWf+mH0bsJWF5Mry8HM3L3jPbj4/V7nnK98mTzhlAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIODqJWcbm1NObOrObv/evLo8a3bB+7nKMvbsOvS+re/KfniFUxYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACFi4579uqPWF2Lbaisr57wr4d6ZvfZ2UdurLHXvlf5mfdjrRTFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAI+3u+v6fcAAPAvnLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIAvH6//wE2OGr/mEceewAAAABJRU5ErkJggg==' },
+    { label: 'וואטסאפ', src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAuYAAALmCAIAAACB+8YEAAASOElEQVR4nO3dQXEDwRVFUTvlpcpkzCGYAiGYwsGcAiGzUOf7/j4HgKXRjORbvXmfr9f3BwDA3/aP6TcAAPC/SRYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABDw9RHx+59/T7+FgJ9//uvtn+fNf/OE5+/zuRNXNPs+9z0hlefz5ifkZj8H7uYJTlkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIyCw571ukfG52ifTEtupzlUXf2b9Z2dSt2LcSPHuPKs/Svif5N/J8PueUBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgICFS86Vlct9m6UnPs99n1Llk9+nsqF98/Jwxc3/O2Y5ZQEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACDg6iXnm82u2lY2n098SrOvPntFlfd5wolnft+e8L77zns5ZQEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACDAkvOlKpu6s5vPlW3qfSvBsyp7wrOvfvMTwhSnLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARcveQ8u4N6s9kd6dnV5YrKSvC+PeHKk7zvmX/u5muf5ZQFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAgIVLzvuWXU+YXUiu7KBWFqdnt39n73vl86z8zecq1/6c/x1/n1MWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAjJLzpXt35vt25Wd5X1uej5nVXakZ7e++fucsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABCQWXKe3RfdtxY7u25qW/W9Zpex96l8iyv3aPb7Prsjve8/1yynLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARklpwry8OV1dATKtvUPqU7t2pPqOzfVraUT1zRvl/amzllAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAICCz5FxZ353dqp1dnJ699tl7VFn0dUWb/uZzrui9Kt+OfZyyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAEJBZct63L1pZDd23OL1vl3tW5X1WVqwr37gTKt/N52afpZ/Id/M5pywAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAEfL5e3x8F+9Y4b97+3be+u2+nd/aZt6F95y/tczffo5t/P52yAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAEPD1sc7sIuW+nd59W6Cz9+jEJ7/vHu37vle2qSur9SdevfJL+9y+77tTFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIWLjnPrtru20E94ebl4crd3LcrW/nkb7722d3j2b9p4/0JpywAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAEfL5e3x+7zG5Xzu7fVtZ39+3KnjC7AftcZQP2uX2fUuV3qfI3Z/2s+8Y955QFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAgK+PiBMbm5W91so29fNXv3kduvI+T7h5fXefyj7zrBPX/rvuU3rOKQsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABn6/X98etKhuwszuolR3pfZ/nCZV7dMK+VdsTKs/nvl+GE34j7/M5pywAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAEfH1E3LwWa5950xLp7OdZ+R49t++Zn72iyvd9n8rdnOWUBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgIDP1+v7Y5fKYmplV3bWvms/8YScsG8D9oTZX4Z99332V/G5m+/RLKcsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABHx9rLNv4XPfamjlU5q99tlXr2x937yUW1mHrnzfb76bP5Fn3ikLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAQuXnG9eSN63g1p5nyfMbj5Xns/K2vbsFZ3g9/Pv/819nLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQkFlyPrGDOrsBe+JvVq7o5vXdE68+q7JRXHlCTpjd+p59km++R7+R35DnnLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQkFlyvnnlcnZf9ITZdejKfa+oPJ+z+8yVp+7mK6r4jWxTn+CUBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgIDMkvNzlRXWyg5qZW278nl6Pqfsu6LZJ8T3nf8/pywAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAELFxyrmzqnthBfe7ma5999Vn7tn8rZj/5fSq/S75H7+WUBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgIDP1+v7o2B2eXjfXmvlfT5XWcZ+rvIk3/wpnbBvp7ey8b7vv8w+TlkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIyCw5n1DZUn6uslX73L5l1xOvfoJP/u+bvfZ9e8KVpfGfdZ/8c05ZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACPj6uFhlq/bmDdjKuum+7d/Zu3mzyrej8t2cNfvM/667R05ZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACPi6eQ9zdoF2dlv15k3dyrO07/mcffXK7vGJu1l56m7+XbKI/oRTFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIyS86zKuums3vCs2bXTWdffd99P/E+LeX+ffueOt7LKQsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABmSXnm1dYT6yGnvib1nfvXF0+oXJFlfc568R3s/KreMJP5H2e4JQFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAgMySc2Wnd9+1W11+rxPXPrv5PHs3K3vXlTVjz9Lf32P/jTxLJzhlAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAICCz5PxcZQ+zshq6b3HajvTUq++7R7PXvu/7vu+Zn/Wz7oqcsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABDw+Xp9T7+HVWb3mfdtgd686Lvvqatsks/at5D83L5fxZuf5BOcsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABDw9bGO7d9Ne62WXd/Lq7/31a0Z3/mbPOv34nVopywAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAEfL5e3x8FlQ3YyvavK3qvymLqvk3dyjN/wr5n3vP53r+5j1MWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAjJLzty5mDq7FmubesrNS+M37/RWPqXZ9/kb+ZROcMoCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAwNdHRGV5eFZlt3N23fTE35zdZ5599X27sifeZ2XRd98vredzE6csAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABGSWnG9eubSt+l6V1eWK2Ss6cTdn/+a+a7/5+fQb8l5OWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAhYuOT83OwSqf3bO81u/z5XuUeVb/HNi74nPqXK8+lX8b2csgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABBw9ZLzzWb3hPetm1be580L3jfvHu+7R7O/YCcWp62CP+GUBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgABLzizZfH7OVu2Uyqbuzc/nrMozf/Orz3LKAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQMDVS84372Ge2BN+7uat2sr+bWWjeN8ytt+l95q9757593LKAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQMDCJWcrwX9/4bOy17pvB/WEylZtZRl73y/Y7BXd/N38WXftTlkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAI+Hy9vqffAwDA/+CUBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWACBAsgAAAZIFAAiQLABAgGQBAAIkCwAQIFkAgADJAgAESBYAIECyAAABkgUACJAsAECAZAEAAiQLABAgWQCAAMkCAARIFgAgQLIAAAGSBQAIkCwAQIBkAQACJAsAECBZAIAAyQIABEgWAODj7/svMMVMJUdhpIsAAAAASUVORK5CYII=' },
+  ];
+
   // ---------------- quotes ----------------
   var QUOTE_STATUS = {
     draft: { label: 'טיוטה', cls: 'draft' },
@@ -1771,6 +1834,18 @@
     }
     return Math.max(0, Number(q.discount) || 0);
   }
+  // אחוז ההנחה בפועל, מעוגל לספרה אחת אחרי הנקודה
+  function discountPctValue(q) {
+    if (q.discountType === 'percent') return q.discountPct === 0 ? '' : (q.discountPct || '');
+    var sub = quoteSubtotal(q), disc = quoteDiscount(q);
+    if (!sub || !disc) return '';
+    return String(Math.round(disc / sub * 1000) / 10);
+  }
+  // במסמך מציגים אחוז רק אם הוא מספר שלם (10%, 15%), אחרת רק את הסכום
+  function discountPctLabel(q) {
+    var v = Number(discountPctValue(q));
+    return v && Math.abs(v - Math.round(v)) < 0.001 ? ' ' + Math.round(v) + '%' : '';
+  }
   function quoteTotal(q) { return Math.max(0, quoteSubtotal(q) - quoteDiscount(q)); }
   function quoteFileName(q) {
     var who = String(q.clientName || '').replace(/[\\/:*?"<>|]+/g, '').trim().replace(/\s+/g, '-');
@@ -1795,7 +1870,8 @@
       id: null, clientId: null, clientName: '', clientPhone: '', clientEmail: '',
       eventType: '', eventDate: '', location: '',
       items: [{ desc: '', qty: 1, price: '' }], discount: '', discountType: 'amount', discountPct: '', deposit: '',
-      issueDate: todayIso(), validUntil: addDaysIso(todayIso(), 14), notes: '', notesHtml: ''
+      issueDate: todayIso(), validUntil: addDaysIso(todayIso(), 14), notes: '', notesHtml: '',
+      showPackage: true, packageHtml: (state.settings && state.settings.packageHtml != null) ? state.settings.packageHtml : DEFAULT_PACKAGE_HTML
     };
     state.clientQuery = ''; state.clientPickerOpen = false;
     state.view = 'newQuote'; state.activeQuoteId = null; state.activeReceiptId = null;
@@ -1809,7 +1885,9 @@
       discount: q.discountType === 'percent' ? '' : (q.discount || ''), discountType: q.discountType || 'amount', discountPct: q.discountPct || '',
       deposit: q.deposit || '',
       issueDate: q.issueDate || todayIso(), validUntil: q.validUntil || '', notes: q.notes || '',
-      notesHtml: q.notesHtml || (q.notes ? textToRich(q.notes) : '')
+      notesHtml: q.notesHtml || (q.notes ? textToRich(q.notes) : ''),
+      showPackage: !!q.showPackage,
+      packageHtml: q.packageHtml || ((state.settings && state.settings.packageHtml != null) ? state.settings.packageHtml : DEFAULT_PACKAGE_HTML)
     }));
     state.clientQuery = ''; state.clientPickerOpen = false;
     state.view = 'newQuote'; state.activeQuoteId = null;
@@ -1871,7 +1949,10 @@
   function updateQuoteTotals() {
     var d = state.quoteDraft; if (!d) return;
     var t = document.getElementById('q-total'); if (t) t.textContent = fmtMoney(quoteTotal(d));
-    var dc = document.getElementById('q-disc'); if (dc) dc.textContent = '-' + fmtMoney(quoteDiscount(d));
+    // שני שדות ההנחה מחוברים: משנים אחד והשני מתעדכן
+    var da = document.getElementById('q-disc-amt'), dp = document.getElementById('q-disc-pct');
+    if (da && document.activeElement !== da && d.discountType === 'percent') da.value = quoteDiscount(d) || '';
+    if (dp && document.activeElement !== dp && d.discountType !== 'percent') dp.value = discountPctValue(d);
     var sub = document.getElementById('q-subtotal'); if (sub) sub.textContent = fmtMoney(quoteSubtotal(d));
     (d.items || []).forEach(function (it, i) {
       var c = document.getElementById('q-line-' + i);
@@ -1887,11 +1968,11 @@
 
     grid.appendChild(clientPicker(d));
     grid.appendChild(el('div', { class: 'field' }, [
-      el('label', {}, ['טלפון']),
+      el('label', {}, ['טלפון (מופיע בהצעה, ומשמש לשליחה בוואטסאפ)']),
       el('input', { type: 'tel', value: d.clientPhone, placeholder: '050-0000000', oninput: function (e) { d.clientPhone = e.target.value; } }),
     ]));
     grid.appendChild(el('div', { class: 'field' }, [
-      el('label', {}, ['מייל']),
+      el('label', {}, ['מייל (לשליחה במייל, לא מופיע בהצעה)']),
       el('input', { type: 'email', dir: 'ltr', value: d.clientEmail, placeholder: 'name@example.com', oninput: function (e) { d.clientEmail = e.target.value; } }),
     ]));
     grid.appendChild(el('div', { class: 'field' }, [
@@ -1939,29 +2020,33 @@
     itemsWrap.appendChild(el('button', {
       class: 'btn small', style: 'margin-top:6px;align-self:flex-start', onclick: function () { d.items.push({ desc: '', qty: 1, price: '' }); render(); }
     }, [icon('plus'), 'הוספת שורה']));
+    itemsWrap.appendChild(el('div', { class: 'q-sum-note' }, ['כמות 0 מציגה את השורה כתוספת שאפשר להזמין, בלי לחייב. מתאים למשל לעמדת משקפיים מוארת.']));
     card.appendChild(itemsWrap);
 
     card.appendChild(el('div', { class: 'q-sum' }, [
-      el('div', { class: 'q-sum-row' }, [el('span', {}, ['סכום ביניים']), el('span', { id: 'q-subtotal' }, [fmtMoney(quoteSubtotal(d))])]),
+      el('div', { class: 'q-sum-row' }, [el('span', {}, ['מחיר לפני הנחה']), el('span', { id: 'q-subtotal' }, [fmtMoney(quoteSubtotal(d))])]),
       el('div', { class: 'q-sum-row' }, [
         el('span', {}, ['הנחה']),
         el('div', { class: 'disc-wrap' }, [
-          el('div', { class: 'seg seg-sm', role: 'group', 'aria-label': 'סוג ההנחה' }, [['amount', '₪'], ['percent', '%']].map(function (o) {
-            return el('button', { type: 'button', class: d.discountType === o[0] ? 'on' : '', 'aria-pressed': d.discountType === o[0] ? 'true' : 'false',
-              onclick: function () { d.discountType = o[0]; render(); } }, [o[1]]);
-          })),
-          d.discountType === 'percent'
-            ? el('div', { class: 'amount-wrap', style: 'width:96px' }, [
-                el('span', { class: 'sign' }, ['%']),
-                el('input', { type: 'number', inputmode: 'decimal', min: '0', max: '100', value: d.discountPct, placeholder: '0', 'aria-label': 'הנחה באחוזים', oninput: function (e) { d.discountPct = e.target.value; updateQuoteTotals(); } }),
-              ])
-            : el('div', { class: 'amount-wrap', style: 'width:110px' }, [
-                el('span', { class: 'sign' }, ['₪']),
-                el('input', { type: 'number', inputmode: 'decimal', min: '0', value: d.discount, placeholder: '0', 'aria-label': 'הנחה בשקלים', oninput: function (e) { d.discount = e.target.value; updateQuoteTotals(); } }),
-              ]),
+          el('div', { class: 'amount-wrap', style: 'width:110px' }, [
+            el('span', { class: 'sign' }, ['₪']),
+            el('input', { id: 'q-disc-amt', type: 'number', inputmode: 'decimal', min: '0', placeholder: '0', 'aria-label': 'הנחה בשקלים',
+              value: d.discountType === 'percent' ? (quoteDiscount(d) || '') : d.discount,
+              oninput: function (e) { d.discountType = 'amount'; d.discount = e.target.value; updateQuoteTotals(); } }),
+          ]),
+          el('span', { class: 'disc-or' }, ['או']),
+          el('div', { class: 'amount-wrap', style: 'width:92px' }, [
+            el('span', { class: 'sign' }, ['%']),
+            el('input', { id: 'q-disc-pct', type: 'number', inputmode: 'decimal', min: '0', max: '100', placeholder: '0', 'aria-label': 'הנחה באחוזים',
+              value: discountPctValue(d),
+              oninput: function (e) { d.discountType = 'percent'; d.discountPct = e.target.value; updateQuoteTotals(); } }),
+          ]),
         ]),
       ]),
-      d.discountType === 'percent' ? el('div', { class: 'q-sum-row' }, [el('span', {}, ['סכום ההנחה']), el('span', { id: 'q-disc' }, ['-' + fmtMoney(quoteDiscount(d))])]) : null,
+      el('div', { class: 'disc-chips' }, [5, 10, 15, 20].map(function (p) {
+        var on = d.discountType === 'percent' && Number(d.discountPct) === p;
+        return el('button', { type: 'button', class: 'disc-chip' + (on ? ' on' : ''), onclick: function () { d.discountType = 'percent'; d.discountPct = String(p); render(); } }, [p + '%']);
+      })),
       el('div', { class: 'q-sum-row total' }, [el('span', {}, ['סה"כ לתשלום']), el('span', { id: 'q-total' }, [fmtMoney(quoteTotal(d))])]),
       el('div', { class: 'q-sum-row' }, [
         el('span', {}, ['מקדמה לשריון התאריך']),
@@ -1985,6 +2070,14 @@
     grid2.appendChild(el('div', { class: 'field full' }, [
       el('label', {}, ['הערות ללקוח (מופיע בהצעה)']),
       richEditor(d.notesHtml, 'למשל: המחיר כולל הגעה והתקנה', function (h) { d.notesHtml = h; }),
+    ]));
+    grid2.appendChild(el('div', { class: 'field full' }, [
+      el('label', { class: 'check' }, [
+        el('input', { type: 'checkbox', checked: d.showPackage ? 'checked' : null, onchange: function (e) { d.showPackage = e.target.checked; render(); } }),
+        'להציג "מה כלול בחבילה" וקודי QR בהצעה',
+      ]),
+      d.showPackage ? richEditor(d.packageHtml, 'מה כלול בחבילה', function (h) { d.packageHtml = h; }) : null,
+      d.showPackage ? el('div', { class: 'q-sum-note' }, ['אפשר לשנות כאן לכל לקוח (למשל שעות). את הנוסח הקבוע להצעות חדשות משנים בהגדרות.']) : null,
     ]));
     var terms = (state.settings && state.settings.quoteTerms) || '';
     grid2.appendChild(el('div', { class: 'field full' }, [
@@ -2024,6 +2117,7 @@
         discount: quoteDiscount({ items: items, discountType: d.discountType, discountPct: d.discountPct, discount: d.discount }),
         deposit: Number(d.deposit) || 0,
         issueDate: d.issueDate || todayIso(), validUntil: d.validUntil || '',
+        showPackage: !!d.showPackage, packageHtml: cleanRich(d.packageHtml || ''),
         notesHtml: cleanRich(d.notesHtml || ''), notes: (function () { var t = document.createElement('template'); t.innerHTML = d.notesHtml || ''; return t.content.textContent.trim(); })(),
         updatedAt: Date.now()
       };
@@ -2080,6 +2174,7 @@
     var sub = quoteSubtotal(q), disc = quoteDiscount(q);
     var rows = [
       ['לכבוד', q.clientName],
+      q.clientPhone ? ['טלפון', ltr(q.clientPhone)] : null,
       q.eventType ? ['סוג האירוע', q.eventType] : null,
       q.eventDate ? ['תאריך האירוע', fmtDate(q.eventDate)] : null,
       q.location ? ['מיקום', q.location] : null,
@@ -2092,6 +2187,15 @@
       el('table', { class: 'rd-items' }, [
         el('thead', {}, [el('tr', {}, [el('th', {}, ['תיאור']), el('th', { class: 'num' }, ['כמות']), el('th', { class: 'num' }, ['מחיר']), el('th', { class: 'num' }, ['סה"כ'])])]),
         el('tbody', {}, (q.items || []).map(function (it) {
+          // כמות 0 = תוספת שאפשר להזמין, מוצגת ללקוח בלי לחייב
+          if (!Number(it.qty)) {
+            return el('tr', { class: 'addon' }, [
+              el('td', {}, [it.desc || '', el('span', { class: 'addon-tag' }, ['אפשר להוסיף'])]),
+              el('td', { class: 'num' }, ['']),
+              el('td', { class: 'num' }, [Number(it.price) > 0 ? fmtMoney(it.price) : '']),
+              el('td', { class: 'num' }, ['']),
+            ]);
+          }
           return el('tr', {}, [
             el('td', {}, [it.desc || '']),
             el('td', { class: 'num' }, [String(it.qty)]),
@@ -2100,26 +2204,40 @@
           ]);
         })),
       ]),
-      disc ? el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['סכום ביניים']), el('span', { class: 'v' }, [fmtMoney(sub)])]) : null,
-      disc ? el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['הנחה' + (q.discountType === 'percent' && Number(q.discountPct) ? ' ' + Number(q.discountPct) + '%' : '')]), el('span', { class: 'v' }, [fmtMoney(disc)])]) : null,
+      disc ? el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['מחיר לפני הנחה']), el('span', { class: 'v' }, [fmtMoney(sub)])]) : null,
+      disc ? el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['הנחה' + discountPctLabel(q)]), el('span', { class: 'v' }, [fmtMoney(disc)])]) : null,
       el('div', { class: 'rd-amount' }, [
         el('span', { class: 'k' }, ['סה"כ לתשלום']),
         el('span', { class: 'v' }, [fmtMoney(quoteTotal(q))]),
       ]),
+      q.showPackage && q.packageHtml ? el('div', { class: 'rd-section' }, [
+        el('div', { class: 'rd-sec-title' }, ['מה כלול בחבילה?']),
+        richEl('rd-pkg', q.packageHtml),
+      ]) : null,
       Number(q.deposit) > 0 ? el('div', { class: 'rd-deposit' }, [
         el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['מקדמה לשריון התאריך']), el('span', { class: 'v' }, [fmtMoney(q.deposit)])]),
         el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['יתרה']), el('span', { class: 'v' }, [fmtMoney(Math.max(0, quoteTotal(q) - Number(q.deposit)))])]),
       ]) : null,
+      s.paymentInfoHtml ? el('div', { class: 'rd-pay' }, [
+        el('div', { class: 'rd-sec-title' }, [Number(q.deposit) > 0 ? 'איך משלמים את המקדמה' : 'פרטים לתשלום']),
+        richEl('rd-pay-body', s.paymentInfoHtml),
+      ]) : null,
       q.validUntil ? el('div', { class: 'rd-valid' }, ['ההצעה בתוקף עד ' + fmtDate(q.validUntil)]) : null,
       q.notesHtml ? richEl('rd-desc', q.notesHtml) : (q.notes ? el('div', { class: 'rd-desc' }, [q.notes]) : null),
       s.quoteTermsHtml ? richEl('rd-terms', s.quoteTermsHtml) : (s.quoteTerms ? el('div', { class: 'rd-terms' }, [s.quoteTerms]) : null),
+      q.showPackage ? el('div', { class: 'rd-qr' }, [
+        el('div', { class: 'rd-qr-title' }, ['מוזמנים להציץ בעבודות שלנו. סרקו את הקודים לאינסטגרם, לטיקטוק ולוואטסאפ שלנו.']),
+        el('div', { class: 'rd-qr-row' }, QR_CODES.map(function (c) {
+          return el('div', { class: 'rd-qr-item' }, [el('img', { src: c.src, alt: 'קוד QR ל' + c.label }), el('div', {}, [c.label])]);
+        })),
+      ]) : null,
       el('div', { class: 'rd-foot' }, ['עוסק פטור ממע"מ. ' + (s.businessName || 'Memories4U') + (s.phone ? ' · ' + ltr(s.phone) : '')]),
     ]);
   }
 
   function quotePdfEntry(q, s) {
-    var key = 'q|' + JSON.stringify([q.id, q.number, q.clientName, q.eventType, q.eventDate, q.location, q.items, q.discount, q.discountType, q.discountPct, q.deposit, q.issueDate, q.validUntil, q.notes, q.notesHtml,
-      s.businessName, s.idNumber, s.address, s.phone, s.email, s.quoteTerms, s.quoteTermsHtml]);
+    var key = 'q|' + JSON.stringify([q.id, q.number, q.clientName, q.clientPhone, q.eventType, q.eventDate, q.location, q.items, q.discount, q.discountType, q.discountPct, q.deposit, q.issueDate, q.validUntil, q.notes, q.notesHtml, q.showPackage, q.packageHtml,
+      s.businessName, s.idNumber, s.address, s.phone, s.email, s.quoteTerms, s.quoteTermsHtml, s.paymentInfoHtml]);
     return getPdf(key, function () { return buildQuoteDoc(q, s); });
   }
 
@@ -2192,7 +2310,7 @@
       desc = 'יתרת תשלום עבור ' + ref;
       amount = String(quoteBalance(q));
     } else {
-      desc = (q.items || []).map(function (it) {
+      desc = (q.items || []).filter(function (it) { return Number(it.qty) > 0; }).map(function (it) {
         return (it.desc || '') + (Number(it.qty) !== 1 ? ' x' + it.qty : '');
       }).filter(Boolean).join(', ');
       if (q.eventType) desc = q.eventType + (desc ? ', ' + desc : '');
@@ -2460,6 +2578,16 @@
     field('כתובת', 'address', { full: true });
     field('הערת עוסק פטור (מופיעה בתחתית כל קבלה)', 'exemptNote', { full: true, textarea: true });
     field('מספר הקבלה הבא שיונפק', 'startNumber', { type: 'number' });
+    if (draft.paymentInfoHtml == null) draft.paymentInfoHtml = '';
+    grid.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['פרטים לתשלום (מופיע בכל הצעת מחיר)']),
+      richEditor(draft.paymentInfoHtml, 'למשל: ביט או פייבוקס למספר..., או העברה בנקאית...', function (h) { draft.paymentInfoHtml = h; }),
+    ]));
+    if (draft.packageHtml == null) draft.packageHtml = DEFAULT_PACKAGE_HTML;
+    grid.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['מה כלול בחבילה (נוסח קבוע שנכנס לכל הצעה חדשה)']),
+      richEditor(draft.packageHtml, 'מה כלול בחבילה', function (h) { draft.packageHtml = h; }),
+    ]));
     if (draft.quoteTermsHtml == null) draft.quoteTermsHtml = draft.quoteTerms ? textToRich(draft.quoteTerms) : '';
     grid.appendChild(el('div', { class: 'field full' }, [
       el('label', {}, ['תנאים קבועים להצעות מחיר (מופיע בתחתית כל הצעה)']),
@@ -2520,7 +2648,7 @@
     delete body.nextNumber; delete body.quoteNextNumber; delete body.lastBackupAt;
     // כל עוד לא הופקה אף קבלה, אפשר לקבוע מאיזה מספר להתחיל
     if (!state.receipts.length) body.nextNumber = body.startNumber;
-    if (body.quoteTermsHtml != null) body.quoteTermsHtml = cleanRich(body.quoteTermsHtml);
+    ['quoteTermsHtml', 'paymentInfoHtml', 'packageHtml'].forEach(function (k) { if (body[k] != null) body[k] = cleanRich(body[k]); });
     try {
       var ref = state.db.doc('settings/business');
       var snap = await ref.get();
