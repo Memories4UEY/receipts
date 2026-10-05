@@ -343,7 +343,10 @@
   .rich font[size="5"] { font-size: 1.3em; }
   .rich font[size="6"] { font-size: 1.65em; }
   .rich font[size="3"] { font-size: 1em; }
-  .receipt-doc .rd-desc.rich { white-space: normal; }
+  .receipt-doc .rd-desc.rich, .receipt-doc .rd-terms.rich, .terms-preview .txt.rich { white-space: normal; }
+  .terms-preview { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; background: var(--panel-2); border: 1px dashed #D3D8E1; border-radius: var(--r-md); padding: 12px 14px; }
+  .terms-preview .btn { white-space: nowrap; flex: 0 0 auto; }
+  .terms-preview .txt { white-space: pre-line; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
   .pay-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; margin-top: 18px; box-shadow: var(--lift); }
   .pay-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .pay-top .k { font-size: 14px; color: var(--ink-2); }
@@ -1983,6 +1986,14 @@
       el('label', {}, ['הערות ללקוח (מופיע בהצעה)']),
       richEditor(d.notesHtml, 'למשל: המחיר כולל הגעה והתקנה', function (h) { d.notesHtml = h; }),
     ]));
+    var terms = (state.settings && state.settings.quoteTerms) || '';
+    grid2.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['תנאים קבועים (מתווספים לכל הצעה אוטומטית)']),
+      el('div', { class: 'terms-preview' }, [
+        state.settings && state.settings.quoteTermsHtml ? richEl('txt', state.settings.quoteTermsHtml) : el('div', { class: 'txt' }, [terms || 'עוד לא הוגדרו תנאים קבועים.']),
+        btn('small', 'settings', terms ? 'עריכה בהגדרות' : 'הוספה בהגדרות', function () { state.view = 'settings'; render(); window.scrollTo(0, 0); }),
+      ]),
+    ]));
     card.appendChild(grid2);
 
     card.appendChild(el('div', { class: 'modal-actions' }, [
@@ -2101,14 +2112,14 @@
       ]) : null,
       q.validUntil ? el('div', { class: 'rd-valid' }, ['ההצעה בתוקף עד ' + fmtDate(q.validUntil)]) : null,
       q.notesHtml ? richEl('rd-desc', q.notesHtml) : (q.notes ? el('div', { class: 'rd-desc' }, [q.notes]) : null),
-      s.quoteTerms ? el('div', { class: 'rd-terms' }, [s.quoteTerms]) : null,
+      s.quoteTermsHtml ? richEl('rd-terms', s.quoteTermsHtml) : (s.quoteTerms ? el('div', { class: 'rd-terms' }, [s.quoteTerms]) : null),
       el('div', { class: 'rd-foot' }, ['עוסק פטור ממע"מ. ' + (s.businessName || 'Memories4U') + (s.phone ? ' · ' + ltr(s.phone) : '')]),
     ]);
   }
 
   function quotePdfEntry(q, s) {
     var key = 'q|' + JSON.stringify([q.id, q.number, q.clientName, q.eventType, q.eventDate, q.location, q.items, q.discount, q.discountType, q.discountPct, q.deposit, q.issueDate, q.validUntil, q.notes, q.notesHtml,
-      s.businessName, s.idNumber, s.address, s.phone, s.email, s.quoteTerms]);
+      s.businessName, s.idNumber, s.address, s.phone, s.email, s.quoteTerms, s.quoteTermsHtml]);
     return getPdf(key, function () { return buildQuoteDoc(q, s); });
   }
 
@@ -2449,7 +2460,14 @@
     field('כתובת', 'address', { full: true });
     field('הערת עוסק פטור (מופיעה בתחתית כל קבלה)', 'exemptNote', { full: true, textarea: true });
     field('מספר הקבלה הבא שיונפק', 'startNumber', { type: 'number' });
-    field('תנאים קבועים להצעות מחיר (מופיע בתחתית כל הצעה)', 'quoteTerms', { full: true, textarea: true });
+    if (draft.quoteTermsHtml == null) draft.quoteTermsHtml = draft.quoteTerms ? textToRich(draft.quoteTerms) : '';
+    grid.appendChild(el('div', { class: 'field full' }, [
+      el('label', {}, ['תנאים קבועים להצעות מחיר (מופיע בתחתית כל הצעה)']),
+      richEditor(draft.quoteTermsHtml, 'למשל: שריון התאריך נעשה רק לאחר תשלום המקדמה', function (h) {
+        draft.quoteTermsHtml = h;
+        var t = document.createElement('template'); t.innerHTML = h; draft.quoteTerms = t.content.textContent.trim();
+      }),
+    ]));
 
     card.appendChild(grid);
     card.appendChild(el('div', { class: 'modal-actions' }, [
@@ -2498,6 +2516,11 @@
     if (!state.db) { showToast('צריך להתחבר כדי לשמור'); return; }
     var body = Object.assign({}, draft);
     body.startNumber = Number(body.startNumber) || 1;
+    // מוני המספור מתעדכנים רק בזמן הפקת מסמך, אף פעם לא מטופס ההגדרות
+    delete body.nextNumber; delete body.quoteNextNumber; delete body.lastBackupAt;
+    // כל עוד לא הופקה אף קבלה, אפשר לקבוע מאיזה מספר להתחיל
+    if (!state.receipts.length) body.nextNumber = body.startNumber;
+    if (body.quoteTermsHtml != null) body.quoteTermsHtml = cleanRich(body.quoteTermsHtml);
     try {
       var ref = state.db.doc('settings/business');
       var snap = await ref.get();
