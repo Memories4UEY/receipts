@@ -724,7 +724,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-10-05-9';
+  var APP_VERSION = '2026-10-05-10';
   function checkForUpdate() {
     try {
       fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
@@ -1958,10 +1958,12 @@
     if (!sub || !disc) return '';
     return String(Math.round(disc / sub * 1000) / 10);
   }
-  // במסמך מציגים אחוז רק אם הוא מספר שלם (10%, 15%), אחרת רק את הסכום
+  // אחוז ההנחה במסמך, עד שתי ספרות אחרי הנקודה (15%, 18.75%)
   function discountPctLabel(q) {
-    var v = Number(discountPctValue(q));
-    return v && Math.abs(v - Math.round(v)) < 0.001 ? ' ' + Math.round(v) + '%' : '';
+    var sub = quoteSubtotal(q), disc = quoteDiscount(q);
+    if (!sub || !disc) return '';
+    var v = q.discountType === 'percent' ? Number(q.discountPct) : Math.round(disc / sub * 10000) / 100;
+    return v ? ' ' + String(Math.round(v * 100) / 100) + '%' : '';
   }
   function quoteTotal(q) { return Math.max(0, quoteSubtotal(q) - quoteDiscount(q)); }
   function quoteFileName(q) {
@@ -2142,7 +2144,7 @@
         class: 'btn small', style: 'align-self:flex-start', onclick: function () { d.items.push({ desc: GLASSES_ADDON, qty: 0, price: '' }); render(); }
       }, [icon('plus'), 'הוספת עמדת משקפיים כתוספת']));
     }
-    itemsWrap.appendChild(el('div', { class: 'q-sum-note' }, ['כמות 0 מציגה את השורה כתוספת שאפשר להזמין, בלי לחייב. מתאים למשל לעמדת משקפיים מוארת.']));
+    itemsWrap.appendChild(el('div', { class: 'q-sum-note' }, ['כמות 0 מציגה את השורה עם "(ניתן להוסיף בתוספת תשלום)", בלי לחייב. מתאים למשל לעמדת משקפיים מוארת.']));
     card.appendChild(itemsWrap);
 
     card.appendChild(el('div', { class: 'q-sum' }, [
@@ -2317,11 +2319,11 @@
         el('tbody', {}, (q.items || []).map(function (it) {
           // כמות 0 = תוספת שאפשר להזמין, מוצגת ללקוח בלי לחייב
           if (!Number(it.qty)) {
-            return el('tr', { class: 'addon' }, [
-              el('td', {}, [it.desc || '', el('span', { class: 'addon-tag' }, ['אפשר להוסיף'])]),
-              el('td', { class: 'num' }, ['']),
-              el('td', { class: 'num' }, [Number(it.price) > 0 ? fmtMoney(it.price) : '']),
-              el('td', { class: 'num' }, ['']),
+            return el('tr', {}, [
+              el('td', {}, [(it.desc || '') + ' (ניתן להוסיף בתוספת תשלום)']),
+              el('td', { class: 'num' }, ['0']),
+              el('td', { class: 'num' }, [fmtMoney(Number(it.price) || 0)]),
+              el('td', { class: 'num' }, [fmtMoney(0)]),
             ]);
           }
           return el('tr', {}, [
