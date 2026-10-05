@@ -1405,7 +1405,7 @@
       el('div', { class: 'rd-head' }, [
         el('div', {}, [
           el('div', { class: 'rd-brand' }, brandMark(s.businessName)),
-          bizLinesEl(s),
+          bizLinesEl(s, r.issueDate),
         ]),
         el('div', { class: 'rd-title' }, [
           el('div', { class: 't' }, ['חשבונית עסקה / קבלה']),
@@ -1414,7 +1414,6 @@
       ]),
       el('div', {}, [
         el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['לכבוד']), el('span', { class: 'v' }, [r.clientName])]),
-        el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['תאריך הפקה']), el('span', { class: 'v' }, [fmtDate(r.issueDate)])]),
         el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['תאריך האירוע']), el('span', { class: 'v' }, [fmtDate(r.eventDate)])]),
         el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['אופן תשלום']), el('span', { class: 'v' }, [PAY_METHODS[r.method] || r.method])]),
       ]),
@@ -1435,12 +1434,11 @@
     var row = function (k, v) { return el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, [k]), el('span', { class: 'v' }, [v])]); };
     return el('div', { class: 'receipt-doc' }, [
       el('div', { class: 'rd-head' }, [
-        el('div', {}, [el('div', { class: 'rd-brand' }, brandMark(s.businessName)), bizLinesEl(s)]),
+        el('div', {}, [el('div', { class: 'rd-brand' }, brandMark(s.businessName)), bizLinesEl(s, r.issueDate)]),
         el('div', { class: 'rd-title' }, [el('div', { class: 't' }, ['קבלה שלילית']), el('div', { class: 'n' }, ['מס\' ' + r.number])]),
       ]),
       el('div', {}, [
         row('לכבוד', r.clientName),
-        row('תאריך הפקה', fmtDate(r.issueDate)),
         row('מבטלת את קבלה', 'מס\' ' + r.refundOfNumber + (r.refundOfDate ? ' מתאריך ' + fmtDate(r.refundOfDate) : '')),
         row('אופן ההחזר', r.method === 'none' ? 'ללא החזר כספי' : (PAY_METHODS[r.method] || r.method)),
       ]),
