@@ -346,6 +346,30 @@
   .receipt-doc .rd-desc.rich, .receipt-doc .rd-terms.rich, .terms-preview .txt.rich { white-space: normal; }
   .terms-preview { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; background: var(--panel-2); border: 1px dashed #D3D8E1; border-radius: var(--r-md); padding: 12px 14px; }
   .terms-preview .btn { white-space: nowrap; flex: 0 0 auto; }
+  .qr-preview { margin-top: 12px; }
+  .qr-preview-row { display: flex; gap: 16px; margin-top: 8px; }
+  .qr-preview-row div { text-align: center; font-size: 12px; color: var(--ink-2); }
+  .qr-preview-row img { width: 64px; height: 64px; display: block; border-radius: 6px; margin-bottom: 4px; }
+  .dp { position: relative; }
+  .dp-field { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel); border: 1px solid #D6DAE2; border-radius: var(--r-md); padding: 11px 13px; font-size: 15px; color: var(--ink); cursor: pointer; text-align: right; font-variant-numeric: tabular-nums; }
+  .dp-field.empty { color: #A2AABA; }
+  .dp-field .ic { color: var(--muted); }
+  .dp-field:focus-visible { border-color: var(--blue); }
+  .dp-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 296px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--float); padding: 12px; }
+  .dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .dp-title { font-weight: 600; font-size: 15px; }
+  .dp-nav { width: 34px; height: 34px; border: none; background: transparent; border-radius: 8px; cursor: pointer; color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; }
+  .dp-nav:hover { background: var(--line-2); }
+  .dp-prev { display: inline-flex; transform: scaleX(-1); }
+  .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .dp-wd { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; }
+  .dp-day { height: 36px; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .dp-day:hover { background: var(--blue-wash); }
+  .dp-day.today { box-shadow: inset 0 0 0 1px var(--blue); color: var(--blue); font-weight: 600; }
+  .dp-day.sel { background: var(--blue); color: #fff; font-weight: 600; box-shadow: none; }
+  .dp-foot { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-2); }
+  .dp-link { border: none; background: none; color: var(--blue); font-size: 14px; font-weight: 500; cursor: pointer; padding: 4px 6px; }
+  .dp-link.muted { color: var(--muted); }
   .disc-or { font-size: 13px; color: var(--muted); }
   .disc-chips { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
   .disc-chip { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--ink-2); }
@@ -575,6 +599,8 @@
   var DEFAULT_EXEMPT_NOTE = 'עוסק פטור ממע"מ לפי סעיף 31 לחוק מס ערך מוסף, התשל"ו-1975. מסמך זה אינו חשבונית מס.';
 
   function el(tag, attrs, children) {
+    // שדות תאריך מוצגים בלוח שנה בעברית במקום הלוח של הדפדפן
+    if (tag === 'input' && attrs && attrs.type === 'date') return datePicker(attrs);
     var e = document.createElement(tag);
     attrs = attrs || {};
     Object.keys(attrs).forEach(function (k) {
@@ -589,6 +615,83 @@
       e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
     });
     return e;
+  }
+
+  // ---------------- Hebrew date picker ----------------
+  var HE_MONTH_NAMES = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+  var HE_WEEKDAYS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+  function isoOf(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+  function datePicker(attrs) {
+    var value = attrs.value || '';
+    var wrap = document.createElement('div');
+    wrap.className = 'dp';
+    var field = document.createElement('button');
+    field.type = 'button';
+    field.className = 'dp-field';
+    field.setAttribute('aria-haspopup', 'dialog');
+    wrap.appendChild(field);
+    function paint() {
+      field.innerHTML = '';
+      field.appendChild(document.createTextNode(value ? fmtDate(value) : 'בחירת תאריך'));
+      field.classList.toggle('empty', !value);
+      field.appendChild(icon('calendar'));
+    }
+    paint();
+    var pop = null;
+    function outside(e) { if (!wrap.contains(e.target)) close(); }
+    function onKey(e) { if (e.key === 'Escape') { close(); field.focus(); } }
+    function close() {
+      if (!pop) return;
+      pop.remove(); pop = null;
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', onKey, true);
+    }
+    function choose(v) {
+      value = v; paint(); close();
+      if (attrs.oninput) attrs.oninput({ target: { value: v } });
+    }
+    function open() {
+      if (pop) { close(); return; }
+      var base = value ? new Date(value + 'T12:00:00') : new Date();
+      var y = base.getFullYear(), m = base.getMonth();
+      pop = document.createElement('div');
+      pop.className = 'dp-pop';
+      pop.setAttribute('role', 'dialog');
+      pop.setAttribute('aria-label', 'בחירת תאריך');
+      wrap.appendChild(pop);
+      function draw() {
+        pop.innerHTML = '';
+        var today = todayIso();
+        var head = el('div', { class: 'dp-head' }, [
+          el('button', { type: 'button', class: 'dp-nav', 'aria-label': 'חודש קודם', onclick: function () { m--; if (m < 0) { m = 11; y--; } draw(); } }, [el('span', { class: 'dp-prev' }, [icon('arrow')])]),
+          el('div', { class: 'dp-title' }, [HE_MONTH_NAMES[m] + ' ' + y]),
+          el('button', { type: 'button', class: 'dp-nav', 'aria-label': 'חודש הבא', onclick: function () { m++; if (m > 11) { m = 0; y++; } draw(); } }, [icon('arrow')]),
+        ]);
+        var grid = el('div', { class: 'dp-grid' }, HE_WEEKDAYS.map(function (w) { return el('div', { class: 'dp-wd' }, [w]); }));
+        var first = new Date(y, m, 1).getDay();
+        var days = new Date(y, m + 1, 0).getDate();
+        for (var i = 0; i < first; i++) grid.appendChild(el('div', {}));
+        for (var d = 1; d <= days; d++) {
+          (function (iso, d) {
+            grid.appendChild(el('button', {
+              type: 'button', class: 'dp-day' + (iso === value ? ' sel' : '') + (iso === today ? ' today' : ''),
+              'aria-label': d + ' ב' + HE_MONTH_NAMES[m] + ' ' + y, onclick: function () { choose(iso); }
+            }, [String(d)]));
+          })(isoOf(y, m, d), d);
+        }
+        pop.appendChild(head);
+        pop.appendChild(grid);
+        pop.appendChild(el('div', { class: 'dp-foot' }, [
+          el('button', { type: 'button', class: 'dp-link', onclick: function () { choose(todayIso()); } }, ['היום']),
+          value ? el('button', { type: 'button', class: 'dp-link muted', onclick: function () { choose(''); } }, ['ניקוי']) : null,
+        ]));
+      }
+      draw();
+      document.addEventListener('pointerdown', outside, true);
+      document.addEventListener('keydown', onKey, true);
+    }
+    field.addEventListener('click', open);
+    return wrap;
   }
 
   function fmtMoney(n) {
@@ -621,7 +724,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-10-05-7';
+  var APP_VERSION = '2026-10-05-9';
   function checkForUpdate() {
     try {
       fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
@@ -1248,11 +1351,24 @@
         quotes.length ? el('div', { class: 'section-title' }, ['הצעות מחיר']) : null,
         quotes.length ? renderQuoteList(quotes, true) : null,
         !receipts.length && !quotes.length ? emptyState('receipt', 'אין עדיין מסמכים ללקוח הזה', null) : null,
+        el('div', { class: 'modal-actions', style: 'margin-top:22px' }, [
+          btn('danger', 'trash', 'מחיקת הלקוח', function () { deleteClient(c, receipts.length); }),
+        ]),
       ]),
     ]);
     document.body.appendChild(overlay);
   }
   function closeOverlay() {}
+  async function deleteClient(c, receiptCount) {
+    if (receiptCount) {
+      showToast('ללקוח הזה יש קבלות, ולכן הוא נשאר ברשימה כחלק מהתיעוד של העסק.');
+      return;
+    }
+    if (!confirm('למחוק את הלקוח "' + c.name + '"? הצעות מחיר שלו יישארו.')) return;
+    if (!state.db) return;
+    try { await state.db.doc('clients/' + c.id).delete(); state.activeClientId = null; showToast('הלקוח נמחק'); render(); }
+    catch (e) { showToast('שגיאה במחיקה'); }
+  }
 
   // ---------------- new receipt ----------------
   function renderNewReceipt(main) {
@@ -1800,6 +1916,7 @@
   }
 
   // נוסח ברירת מחדל ל'מה כלול בחבילה' (אפשר לשנות בהגדרות ובכל הצעה)
+  var GLASSES_ADDON = 'עמדת משקפיים מוארת';
   var DEFAULT_PACKAGE_HTML = "<div>✨ שני אנשי צוות מקצועיים ואדיבים בעמדה בין 19:30 ל־23:00, מקבלת הפנים ועד רחבת הריקודים.</div><div><br></div><div>🖨️ צילומים והדפסות ללא הגבלה, לבחירה בצבע או בשחור־לבן. לחתן ולכלה שומרים הפתעה, תמונה אישית בפורמט רחב וגדול של 4 על 6 אינץ', כפול מגודל הסטריפ הרגיל של האורחים.</div><div><br></div><div>📲 שליחת התמונות וה־GIF ישירות לנייד של האורחים, דרך סריקת קוד QR ומשם כל אורח בוחר איך לקבל אותן אצלו, AirDrop, וואטסאפ, הודעות, מייל, או שמירה ישירה לגלריה.</div><div><br></div><div>🔗 כבר למחרת תקבלו לינק עם כל התמונות שצולמו בעמדה.</div><div><br></div><div>אנחנו מקפידים על תמונות באיכות גבוהה ועל עמדה במראה נקי ואלגנטי, ציוד מקצועי ברמת סטודיו שנראה כמו חלק מהעיצוב של האירוע שלכם, זה לא עוד תוספת שתולים עליו.</div>";
   // קודי QR מהאתר (assets/img/qr-*.png), מוטמעים כדי שיופיעו גם ב-PDF
   var QR_CODES = [
@@ -1869,7 +1986,7 @@
     state.quoteDraft = {
       id: null, clientId: null, clientName: '', clientPhone: '', clientEmail: '',
       eventType: '', eventDate: '', location: '',
-      items: [{ desc: '', qty: 1, price: '' }], discount: '', discountType: 'amount', discountPct: '', deposit: '',
+      items: [{ desc: '', qty: 1, price: '' }, { desc: GLASSES_ADDON, qty: 0, price: '' }], discount: '', discountType: 'amount', discountPct: '', deposit: '',
       issueDate: todayIso(), validUntil: addDaysIso(todayIso(), 14), notes: '', notesHtml: '',
       showPackage: true, packageHtml: (state.settings && state.settings.packageHtml != null) ? state.settings.packageHtml : DEFAULT_PACKAGE_HTML
     };
@@ -2020,6 +2137,11 @@
     itemsWrap.appendChild(el('button', {
       class: 'btn small', style: 'margin-top:6px;align-self:flex-start', onclick: function () { d.items.push({ desc: '', qty: 1, price: '' }); render(); }
     }, [icon('plus'), 'הוספת שורה']));
+    if (!d.items.some(function (it) { return (it.desc || '').indexOf('משקפיים') > -1; })) {
+      itemsWrap.appendChild(el('button', {
+        class: 'btn small', style: 'align-self:flex-start', onclick: function () { d.items.push({ desc: GLASSES_ADDON, qty: 0, price: '' }); render(); }
+      }, [icon('plus'), 'הוספת עמדת משקפיים כתוספת']));
+    }
     itemsWrap.appendChild(el('div', { class: 'q-sum-note' }, ['כמות 0 מציגה את השורה כתוספת שאפשר להזמין, בלי לחייב. מתאים למשל לעמדת משקפיים מוארת.']));
     card.appendChild(itemsWrap);
 
@@ -2078,6 +2200,12 @@
       ]),
       d.showPackage ? richEditor(d.packageHtml, 'מה כלול בחבילה', function (h) { d.packageHtml = h; }) : null,
       d.showPackage ? el('div', { class: 'q-sum-note' }, ['אפשר לשנות כאן לכל לקוח (למשל שעות). את הנוסח הקבוע להצעות חדשות משנים בהגדרות.']) : null,
+      d.showPackage ? el('div', { class: 'qr-preview' }, [
+        el('div', { class: 'q-sum-note' }, ['קודי ה-QR האלה יופיעו בסוף ההצעה שהלקוח מקבל']),
+        el('div', { class: 'qr-preview-row' }, QR_CODES.map(function (c) {
+          return el('div', {}, [el('img', { src: c.src, alt: 'קוד QR ל' + c.label }), el('span', {}, [c.label])]);
+        })),
+      ]) : null,
     ]));
     var terms = (state.settings && state.settings.quoteTerms) || '';
     grid2.appendChild(el('div', { class: 'field full' }, [
