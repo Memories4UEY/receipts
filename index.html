@@ -621,7 +621,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-10-05-6';
+  var APP_VERSION = '2026-10-05-7';
   function checkForUpdate() {
     try {
       fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
@@ -2296,7 +2296,19 @@
     }
     if (!confirm('למחוק את הצעת המחיר מס\' ' + q.number + '?')) return;
     if (!state.db) return;
-    try { await state.db.doc('quotes/' + q.id).delete(); state.activeQuoteId = null; showToast('ההצעה נמחקה'); render(); }
+    try {
+      // אחרי מחיקה, ההצעה הבאה מקבלת את המספר שאחרי ההצעה הגבוהה שנשארה, כך שמספר שנמחק בסוף הרשימה חוזר לשימוש
+      var maxLeft = state.quotes.reduce(function (m, x) { return x.id === q.id ? m : Math.max(m, Number(x.number) || 0); }, 0);
+      await state.db.runTransaction(function (tx) {
+        var sref = state.db.doc('settings/business');
+        return tx.get(sref).then(function (snap) {
+          var cur = Number((snap.exists ? snap.data() : {}).quoteNextNumber) || 1;
+          tx.delete(state.db.doc('quotes/' + q.id));
+          if (maxLeft + 1 < cur) tx.set(sref, { quoteNextNumber: maxLeft + 1 }, { merge: true });
+        });
+      });
+      state.activeQuoteId = null; showToast('ההצעה נמחקה'); render();
+    }
     catch (e) { showToast('שגיאה במחיקה'); }
   }
   function quoteToReceipt(q, kind) {
