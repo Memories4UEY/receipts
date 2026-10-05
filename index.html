@@ -391,6 +391,34 @@
   .receipt-doc .rd-qr-row { display: flex; justify-content: center; gap: 28px; }
   .receipt-doc .rd-qr-item { font-size: 12px; color: #3E4A62; font-weight: 500; }
   .receipt-doc .rd-qr-item img { width: 92px; height: 92px; display: block; margin: 0 auto 6px; border-radius: 6px; }
+  /* פריסה צפופה יותר ב-PDF בלבד */
+  .pdf-holder .receipt-doc { padding: 24px 28px 20px; }
+  .pdf-holder .receipt-doc .rd-head { padding-bottom: 12px; margin-bottom: 8px; }
+  .pdf-holder .receipt-doc .rd-biz { line-height: 1.5; margin-top: 3px; }
+  .pdf-holder .receipt-doc .rd-row { padding: 5px 0; font-size: 13px; }
+  .pdf-holder .receipt-doc .rd-items { margin: 10px 0 4px; font-size: 13px; }
+  .pdf-holder .receipt-doc .rd-items td { padding: 6px; }
+  .pdf-holder .receipt-doc .rd-items th { padding: 5px 6px; }
+  .pdf-holder .receipt-doc .rd-amount { margin-top: 10px; padding: 10px 16px; }
+  .pdf-holder .receipt-doc .rd-amount .v { font-size: 24px; }
+  .pdf-holder .receipt-doc .rd-section { margin-top: 12px; }
+  .pdf-holder .receipt-doc .rd-sec-title { margin-bottom: 4px; font-size: 14px; }
+  .pdf-holder .receipt-doc .rd-pkg { font-size: 12.5px; line-height: 1.55; }
+  .pdf-holder .receipt-doc .rd-deposit { margin-top: 6px; }
+  .pdf-holder .receipt-doc .rd-pay { margin-top: 10px; padding: 10px 14px; }
+  .pdf-holder .receipt-doc .rd-valid { margin-top: 8px; }
+  .pdf-holder .receipt-doc .rd-desc { margin: 8px 0; padding: 8px 12px; font-size: 13px; }
+  .pdf-holder .receipt-doc .rd-terms { margin-top: 8px; font-size: 11.5px; line-height: 1.5; }
+  .pdf-holder .receipt-doc .rd-qr { margin-top: 10px; padding-top: 10px; }
+  .pdf-holder .receipt-doc .rd-qr-title { margin-bottom: 6px; font-size: 12px; }
+  .pdf-holder .receipt-doc .rd-qr-row { gap: 22px; }
+  .pdf-holder .receipt-doc .rd-qr-item img { width: 66px; height: 66px; margin-bottom: 3px; }
+  .pdf-holder .receipt-doc .rd-foot { margin-top: 10px; padding-top: 8px; }
+  .pdf-holder .receipt-doc .rd-rows { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
+  .pdf-holder .receipt-doc .rd-pair.two { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; align-items: start; }
+  .pdf-holder .receipt-doc .rd-pair.two .rd-pay { margin-top: 6px; }
+  .pdf-holder .receipt-doc .rd-pair.two .rd-qr { margin-top: 8px; padding-top: 0; border-top: none; }
+  .pdf-holder .receipt-doc .rd-pair.two .rd-qr-row { gap: 14px; }
   .terms-preview .txt { white-space: pre-line; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
   .pay-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; margin-top: 18px; box-shadow: var(--lift); }
   .pay-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -725,7 +753,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-10-05-11';
+  var APP_VERSION = '2026-10-06-12';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -1668,6 +1696,10 @@
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
     var holder = el('div', { dir: 'rtl', class: 'pdf-holder', style: 'position:fixed;left:-10000px;top:0;width:760px;background:#fff;padding:36px;font-family:\'IBM Plex Sans Hebrew\',sans-serif' }, [buildFn()]);
     document.body.appendChild(holder);
+    // ב-PDF שורות ריקות בטקסט מעוצב הופכות לרווח קטן, כדי שהמסמך ייכנס לעמוד אחד
+    Array.prototype.forEach.call(holder.querySelectorAll('.rich > div'), function (d) {
+      if (!d.textContent.trim()) d.style.cssText = 'height:6px;line-height:6px;font-size:0;overflow:hidden';
+    });
     try {
       var canvas = await window.html2canvas(holder, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
       var jsPDF = window.jspdf.jsPDF;
@@ -1676,8 +1708,11 @@
       var w = pageW - margin * 2;
       var h = canvas.height * w / canvas.width;
       var maxH = pageH - margin * 2;
-      if (h <= maxH) {
-        doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, w, h);
+      if (h <= maxH * 1.3) {
+        // נכנס לעמוד אחד (אם צריך, מוקטן מעט ונשאר במרכז)
+        var fit = Math.min(1, maxH / h);
+        var w1 = w * fit, h1 = h * fit;
+        doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', (pageW - w1) / 2, margin, w1, h1);
       } else {
         // מסמך ארוך, מחלקים לכמה עמודים. חותכים רק בשורה לבנה כדי לא לחתוך טקסט באמצע
         var sliceH = Math.floor(canvas.width * maxH / w);
@@ -2318,7 +2353,7 @@
     ].filter(Boolean);
     return el('div', { class: 'receipt-doc' }, [
       bizHeader(s, 'הצעת מחיר', null, q.issueDate),
-      el('div', {}, rows.map(function (r) {
+      el('div', { class: 'rd-rows' }, rows.map(function (r) {
         return el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, [r[0]]), el('span', { class: 'v' }, [r[1]])]);
       })),
       el('table', { class: 'rd-items' }, [
@@ -2351,16 +2386,19 @@
         el('div', { class: 'rd-sec-title' }, ['מה כלול בחבילה?']),
         richEl('rd-pkg', q.packageHtml),
       ]) : null,
-      Number(q.deposit) > 0 ? el('div', { class: 'rd-deposit' }, [
-        el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['מקדמה לשריון התאריך']), el('span', { class: 'v' }, [fmtMoney(q.deposit)])]),
-        el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['יתרה']), el('span', { class: 'v' }, [fmtMoney(Math.max(0, quoteTotal(q) - Number(q.deposit)))])]),
-      ]) : null,
-      s.paymentInfoHtml ? el('div', { class: 'rd-pay' }, [
-        el('div', { class: 'rd-sec-title' }, [Number(q.deposit) > 0 ? 'איך משלמים את המקדמה' : 'פרטים לתשלום']),
-        richEl('rd-pay-body', s.paymentInfoHtml),
-      ]) : null,
+      el('div', { class: 'rd-pair' + (Number(q.deposit) > 0 && s.paymentInfoHtml ? ' two' : '') }, [
+        Number(q.deposit) > 0 ? el('div', { class: 'rd-deposit' }, [
+          el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['מקדמה לשריון התאריך']), el('span', { class: 'v' }, [fmtMoney(q.deposit)])]),
+          el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['יתרה']), el('span', { class: 'v' }, [fmtMoney(Math.max(0, quoteTotal(q) - Number(q.deposit)))])]),
+        ]) : null,
+        s.paymentInfoHtml ? el('div', { class: 'rd-pay' }, [
+          el('div', { class: 'rd-sec-title' }, [Number(q.deposit) > 0 ? 'איך משלמים את המקדמה' : 'פרטים לתשלום']),
+          richEl('rd-pay-body', s.paymentInfoHtml),
+        ]) : null,
+      ]),
       q.validUntil ? el('div', { class: 'rd-valid' }, ['ההצעה בתוקף עד ' + fmtDate(q.validUntil)]) : null,
       q.notesHtml ? richEl('rd-desc', q.notesHtml) : (q.notes ? el('div', { class: 'rd-desc' }, [q.notes]) : null),
+      el('div', { class: 'rd-pair' + ((s.quoteTermsHtml || s.quoteTerms) && q.showPackage ? ' two' : '') }, [
       s.quoteTermsHtml ? richEl('rd-terms', s.quoteTermsHtml) : (s.quoteTerms ? el('div', { class: 'rd-terms' }, [s.quoteTerms]) : null),
       q.showPackage ? el('div', { class: 'rd-qr' }, [
         el('div', { class: 'rd-qr-title' }, ['מוזמנים להציץ בעבודות שלנו. סרקו את הקודים לאינסטגרם, לטיקטוק ולוואטסאפ שלנו.']),
@@ -2368,6 +2406,7 @@
           return el('div', { class: 'rd-qr-item' }, [el('img', { src: c.src, alt: 'קוד QR ל' + c.label }), el('div', {}, [c.label])]);
         })),
       ]) : null,
+      ]),
       el('div', { class: 'rd-foot' }, ['עוסק פטור ממע"מ. ' + (s.businessName || 'Memories4U') + (s.phone ? ' · ' + ltr(s.phone) : '')]),
     ]);
   }
