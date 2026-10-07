@@ -80,6 +80,11 @@
   .nav-link.active { background: rgba(142, 166, 255, .16); color: #fff; }
   .nav-link.active .ic { opacity: 1; color: #A9BBFF; }
   .nav-spacer { flex: 1; }
+  .nav-group { border-top: 1px solid rgba(255, 255, 255, .1); padding-top: 14px; display: flex; flex-direction: column; gap: 4px; margin-top: -10px; }
+  .nav-sub { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: none; background: transparent; color: rgba(255, 255, 255, .6); font-size: 13.5px; cursor: pointer; border-radius: var(--r-md); text-align: right; }
+  .nav-sub .ic { width: 16px; height: 16px; }
+  .nav-sub:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+  .mobile-only { display: none !important; }
   .nav-cta {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     background: var(--blue); color: #fff; border: none; border-radius: var(--r-md);
@@ -127,6 +132,14 @@
   .hero { display: grid; grid-template-columns: 1.35fr 1fr; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--lift); overflow: hidden; }
   .hero-main { padding: 28px 30px 26px; }
   .hero-label { font-size: 14px; color: var(--muted); }
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat { padding: 18px 20px; }
+  .stat .k { font-size: 13.5px; color: var(--muted); }
+  .stat .v { font-size: 24px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; text-align: right; }
+  .stat.main .v { color: var(--blue); }
+  .tbl.months .tr { grid-template-columns: minmax(0, 1fr) 130px 130px 130px; }
+  .hero-more { float: left; margin-top: 12px; border: none; background: none; color: var(--blue); font-size: 13.5px; font-weight: 500; cursor: pointer; padding: 4px 0; }
+  .hero-more:hover { text-decoration: underline; }
   .hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
   .hero-value { font-size: 52px; font-weight: 300; letter-spacing: -.03em; line-height: 1.1; margin: 8px 0 22px; font-variant-numeric: tabular-nums; direction: ltr; text-align: right; }
   .hero-value.neg { color: var(--danger); }
@@ -480,7 +493,8 @@
     .nav { width: 100%; flex: none; height: auto; position: sticky; top: 0; z-index: 20; flex-direction: row; align-items: center; justify-content: space-between; padding: 12px 16px; gap: 12px; }
     .brand { flex-direction: row; align-items: baseline; gap: 8px; padding: 0; }
     .brand .word { font-size: 19px; }
-    .brand .sub, .nav-spacer, .nav-user, .nav-ver { display: none; }
+    .brand .sub, .nav-spacer, .nav-user, .nav-ver, .desktop-only { display: none !important; }
+    .nav-links .mobile-only { display: flex !important; }
     .nav-cta { padding: 9px 14px; font-size: 14px; }
     .nav-links {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; flex-direction: row;
@@ -507,6 +521,11 @@
     .hero-stat { padding: 16px 18px; }
     .hero-stat .v { font-size: 21px; }
     .events { grid-template-columns: 1fr; }
+    .stat-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tbl.months .tr { grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-areas: none; }
+    .tbl.months .tr.th { display: grid; }
+    .tbl.months .tr > div { grid-area: auto !important; font-size: 13.5px; }
+    .tbl.months .tr .c-amt { min-width: 64px; }
     .overlay { padding: 0; }
     .modal { max-width: none; padding: 16px 14px calc(100px + env(safe-area-inset-bottom, 0px)); }
     .overlay:not(.no-anim) .modal { animation: rise .28s cubic-bezier(.2, .8, .2, 1); }
@@ -755,7 +774,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-10-07-13';
+  var APP_VERSION = '2026-10-07-14';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -876,6 +895,7 @@
     calendar: 'M4 6h16v14H4zM4 10h16M8.5 3.5v4M15.5 3.5v4',
     arrow: 'M15 6l-6 6 6 6',
     convert: 'M20 12H7M11 7.5 6.5 12 11 16.5M4 5v14',
+    trend: 'M4 17.5l5-5.5 4 4 7-7.5M14.5 8.5H20V14',
   };
   var WA_PATH = 'M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 0 0-3.48-8.41z';
   function icon(name) {
@@ -916,7 +936,8 @@
     var links = [
       { id: 'dashboard', label: 'לוח בקרה', ic: 'home' },
       { id: 'receipts', label: 'קבלות', ic: 'receipt' },
-      { id: 'quotes', label: 'הצעות מחיר', ic: 'quote' },
+      { id: 'quotes', label: 'הצעות מחיר', ic: 'quote', cls: 'mobile-only' },
+      { id: 'income', label: 'הכנסות', ic: 'trend', cls: 'desktop-only' },
       { id: 'expenses', label: 'הוצאות', ic: 'wallet' },
       { id: 'clients', label: 'לקוחות', ic: 'users' },
       { id: 'settings', label: 'הגדרות', ic: 'settings' },
@@ -924,18 +945,23 @@
     var isExpenseCtx = state.view === 'expenses' || state.view === 'newExpense';
     var isQuoteCtx = state.view === 'quotes' || state.view === 'newQuote';
     var current = { newReceipt: 'receipts', newQuote: 'quotes', newExpense: 'expenses', newRefund: 'receipts' }[state.view] || state.view;
+    function navLinkBtn(l) {
+      return el('button', {
+        class: 'nav-link' + (l.cls ? ' ' + l.cls : '') + (current === l.id ? ' active' : ''), 'aria-current': current === l.id ? 'page' : null,
+        onclick: function () { state.view = l.id; state.activeReceiptId = null; state.activeQuoteId = null; state.activeClientId = null; state.listSearch = ''; render(); window.scrollTo(0, 0); }
+      }, [icon(l.ic), el('span', { class: 'lbl' }, [l.label])]);
+    }
     root.appendChild(el('nav', { class: 'nav', 'aria-label': 'ניווט ראשי' }, [
       el('div', { class: 'brand' }, [
         el('div', { class: 'word' }, brandMark((state.settings && state.settings.businessName) || 'Memories4U')),
         el('div', { class: 'sub' }, ['ניהול העסק']),
       ]),
-      el('div', { class: 'nav-links' }, links.map(function (l) {
-        return el('button', {
-          class: 'nav-link' + (current === l.id ? ' active' : ''), 'aria-current': current === l.id ? 'page' : null,
-          onclick: function () { state.view = l.id; state.activeReceiptId = null; state.activeQuoteId = null; state.activeClientId = null; state.listSearch = ''; render(); window.scrollTo(0, 0); }
-        }, [icon(l.ic), el('span', { class: 'lbl' }, [l.label])]);
-      })),
+      el('div', { class: 'nav-links' }, links.map(navLinkBtn)),
       el('div', { class: 'nav-spacer' }),
+      el('div', { class: 'nav-group desktop-only' }, [
+        navLinkBtn({ id: 'quotes', label: 'הצעות מחיר', ic: 'quote' }),
+        el('button', { class: 'nav-sub', onclick: openNewQuote }, [icon('plus'), 'הצעת מחיר חדשה']),
+      ]),
       el('button', {
         class: 'nav-cta',
         onclick: function () { if (isExpenseCtx) openNewExpense(); else if (isQuoteCtx) openNewQuote(); else openNewReceipt(); }
@@ -1043,6 +1069,7 @@
           incomeTotal ? el('div', { class: 'in', style: 'width:' + inPct + '%' }) : null,
           expenseTotal ? el('div', { class: 'out', style: 'width:' + (100 - inPct) + '%' }) : null,
         ] : []),
+        el('button', { class: 'hero-more', onclick: function () { state.view = 'income'; render(); window.scrollTo(0, 0); } }, ['לפירוט ההכנסות']),
         el('div', { class: 'split-legend' }, [
           el('div', { class: 'it' }, [el('span', { class: 'k' }, ['הכנסות']), el('span', { class: 'v' }, [fmtMoney(incomeTotal)])]),
           el('div', { class: 'it out' }, [el('span', { class: 'k' }, ['הוצאות']), el('span', { class: 'v' }, [fmtMoney(expenseTotal)])]),
@@ -1108,6 +1135,53 @@
     var h = new Date().getHours();
     var hello = h < 12 ? 'בוקר טוב' : h < 18 ? 'צהריים טובים' : 'ערב טוב';
     return hello + ', ' + (state.settings.ownerName || state.settings.businessName || '');
+  }
+
+  // ---------------- income ----------------
+  function renderIncomePage(main) {
+    var period = PERIODS.filter(function (p) { return p.id === state.dashPeriod; })[0] || PERIODS[0];
+    var paid = state.receipts.filter(function (r) { return r.status === 'paid' && period.test(r.issueDate); });
+    var exp = state.expenses.filter(function (x) { return period.test(x.date); });
+    var income = paid.reduce(function (s, r) { return s + (Number(r.amount) || 0); }, 0);
+    var expenses = exp.reduce(function (s, x) { return s + (Number(x.amount) || 0); }, 0);
+    var count = paid.filter(function (r) { return r.kind !== 'refund'; }).length;
+
+    main.appendChild(el('div', { class: 'page-head' }, [
+      el('div', {}, [el('h1', {}, ['הכנסות']), el('div', { class: 'hint' }, ['לפי תאריך ההפקה של הקבלות'])]),
+      el('div', { class: 'seg', role: 'group', 'aria-label': 'תקופה' }, PERIODS.map(function (p) {
+        return el('button', { type: 'button', class: p.id === period.id ? 'on' : '', 'aria-pressed': p.id === period.id ? 'true' : 'false',
+          onclick: function () { state.dashPeriod = p.id; try { localStorage.setItem('m4u-period', p.id); } catch (e) {} render(); } }, [p.name]);
+      })),
+    ]));
+    main.appendChild(el('div', { class: 'stat-row' }, [
+      el('div', { class: 'card stat' }, [el('div', { class: 'k' }, ['הכנסות']), el('div', { class: 'v' }, [fmtMoney(income)])]),
+      el('div', { class: 'card stat' }, [el('div', { class: 'k' }, ['הוצאות']), el('div', { class: 'v' }, [fmtMoney(expenses)])]),
+      el('div', { class: 'card stat main' }, [el('div', { class: 'k' }, ['רווח נטו']), el('div', { class: 'v', dir: 'ltr' }, [fmtMoney(income - expenses)])]),
+      el('div', { class: 'card stat' }, [el('div', { class: 'k' }, ['קבלות ששולמו']), el('div', { class: 'v' }, [String(count)])]),
+    ]));
+
+    // פירוט לפי חודשים
+    var months = {};
+    paid.forEach(function (r) { var k = (r.issueDate || '').slice(0, 7); (months[k] = months[k] || { inc: 0, exp: 0 }).inc += Number(r.amount) || 0; });
+    exp.forEach(function (x) { var k = (x.date || '').slice(0, 7); (months[k] = months[k] || { inc: 0, exp: 0 }).exp += Number(x.amount) || 0; });
+    var keys = Object.keys(months).filter(Boolean).sort().reverse();
+    if (keys.length) {
+      main.appendChild(el('div', { class: 'section-title' }, ['לפי חודשים']));
+      main.appendChild(el('div', { class: 'tbl months' }, [
+        tableHead([['חודש', 'c-main'], ['הכנסות', 'c-amt'], ['הוצאות', 'c-amt'], ['רווח נטו', 'c-amt']]),
+      ].concat(keys.map(function (k) {
+        var m = months[k], pr = m.inc - m.exp;
+        return el('div', { class: 'tr' }, [
+          el('div', { class: 'c-main' }, [el('div', { class: 'n' }, [HE_MONTH_NAMES[Number(k.slice(5, 7)) - 1] + ' ' + k.slice(0, 4)])]),
+          el('div', { class: 'c-amt' }, [fmtMoney(m.inc)]),
+          el('div', { class: 'c-amt neg' }, [fmtMoney(m.exp)]),
+          el('div', { class: 'c-amt', dir: 'ltr', style: pr < 0 ? 'color:var(--danger)' : '' }, [fmtMoney(pr)]),
+        ]);
+      }))));
+    }
+    main.appendChild(el('div', { class: 'section-title' }, ['קבלות ששולמו ' + period.label]));
+    main.appendChild(paid.length ? renderReceiptList(paid)
+      : emptyState('trend', 'אין הכנסות בתקופה הזו', 'הכנסות נרשמות כשמפיקים קבלה ששולמה.', btn('primary', 'plus', 'קבלה חדשה', function () { openNewReceipt(); })));
   }
 
   // ---------------- receipts list ----------------
@@ -2986,6 +3060,7 @@
     else if (state.view === 'newExpense') renderNewExpense(main);
     else if (state.view === 'newRefund') renderNewRefund(main);
     else if (state.view === 'quotes') renderQuotesPage(main);
+    else if (state.view === 'income') renderIncomePage(main);
     else if (state.view === 'newQuote') renderNewQuote(main);
 
     if (state.activeClientId) renderClientDetail();
