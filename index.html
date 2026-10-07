@@ -127,6 +127,7 @@
   .hero { display: grid; grid-template-columns: 1.35fr 1fr; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--lift); overflow: hidden; }
   .hero-main { padding: 28px 30px 26px; }
   .hero-label { font-size: 14px; color: var(--muted); }
+  .hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
   .hero-value { font-size: 52px; font-weight: 300; letter-spacing: -.03em; line-height: 1.1; margin: 8px 0 22px; font-variant-numeric: tabular-nums; direction: ltr; text-align: right; }
   .hero-value.neg { color: var(--danger); }
   .split { height: 10px; border-radius: 99px; background: var(--line-2); display: flex; overflow: hidden; gap: 2px; }
@@ -602,6 +603,7 @@
     quoteSearch: '',
     activeClientId: null,
     refundDraft: null,
+    dashPeriod: (function () { try { return localStorage.getItem('m4u-period') || 'month'; } catch (e) { return 'month'; } })(),
     receiptFilter: 'all',
     quoteFilter: 'all',
     view: 'dashboard',
@@ -753,7 +755,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-10-06-12';
+  var APP_VERSION = '2026-10-07-13';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -957,6 +959,18 @@
   }
 
   // ---------------- dashboard ----------------
+  // תקופות לחישוב הרווח בלוח הבקרה
+  var PERIODS = (function () {
+    var t = todayIso(), y = t.slice(0, 4), m = t.slice(0, 7);
+    var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    var pm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return [
+      { id: 'month', name: 'החודש', label: 'החודש', test: function (iso) { return (iso || '').slice(0, 7) === m; } },
+      { id: 'last', name: 'חודש קודם', label: 'בחודש הקודם', test: function (iso) { return (iso || '').slice(0, 7) === pm; } },
+      { id: 'year', name: 'השנה', label: 'השנה', test: function (iso) { return (iso || '').slice(0, 4) === y; } },
+      { id: 'all', name: 'מההתחלה', label: 'מההתחלה', test: function () { return true; } },
+    ];
+  })();
   function monthKey(d) { return (d || '').slice(0, 7); }
   function daysUntil(iso) {
     var a = new Date(todayIso() + 'T12:00:00'), b = new Date(iso + 'T12:00:00');
@@ -984,14 +998,14 @@
 
   function renderDashboard(main) {
     var now = new Date();
-    var thisMonth = monthKey(todayIso());
-    var incomeTotal = 0, pendingTotal = 0, pendingCount = 0, expenseTotal = 0;
+    var period = PERIODS.filter(function (p) { return p.id === state.dashPeriod; })[0] || PERIODS[0];
+    var incomeTotal = 0, pendingTotal = 0, pendingCount = 0, expenseTotal = 0, paidCount = 0;
     state.receipts.forEach(function (r) {
       if (r.status === 'paid') {
-        if (monthKey(r.issueDate) === thisMonth) incomeTotal += Number(r.amount) || 0;
+        if (period.test(r.issueDate)) { incomeTotal += Number(r.amount) || 0; if (r.kind !== 'refund') paidCount++; }
       } else { pendingTotal += Number(r.amount) || 0; pendingCount++; }
     });
-    state.expenses.forEach(function (x) { if (monthKey(x.date) === thisMonth) expenseTotal += Number(x.amount) || 0; });
+    state.expenses.forEach(function (x) { if (period.test(x.date)) expenseTotal += Number(x.amount) || 0; });
     var profit = incomeTotal - expenseTotal;
     var openQuotes = state.quotes.filter(function (q) { return (q.status === 'draft' || q.status === 'sent') && !quotePaid(q); });
     var balQuotes = state.quotes.filter(function (q) { return quoteStatusKey(q) === 'deposit'; });
@@ -1017,7 +1031,13 @@
     var inPct = incomeTotal + expenseTotal ? Math.round(incomeTotal / (incomeTotal + expenseTotal) * 100) : 0;
     main.appendChild(el('section', { class: 'hero', 'aria-label': 'סיכום החודש' }, [
       el('div', { class: 'hero-main' }, [
-        el('div', { class: 'hero-label' }, ['רווח נטו החודש']),
+        el('div', { class: 'hero-top' }, [
+          el('div', { class: 'hero-label' }, ['רווח נטו ' + period.label]),
+          el('div', { class: 'seg seg-sm', role: 'group', 'aria-label': 'תקופה' }, PERIODS.map(function (p) {
+            return el('button', { type: 'button', class: p.id === period.id ? 'on' : '', 'aria-pressed': p.id === period.id ? 'true' : 'false',
+              onclick: function () { state.dashPeriod = p.id; try { localStorage.setItem('m4u-period', p.id); } catch (e) {} render(); } }, [p.name]);
+          })),
+        ]),
         el('div', { class: 'hero-value' + (profit < 0 ? ' neg' : '') }, [(profit < 0 ? '-' : '') + fmtMoney(Math.abs(profit))]),
         el('div', { class: 'split', role: 'img', 'aria-label': 'הכנסות מול הוצאות' }, (incomeTotal + expenseTotal) ? [
           incomeTotal ? el('div', { class: 'in', style: 'width:' + inPct + '%' }) : null,
