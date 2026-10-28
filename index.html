@@ -279,6 +279,7 @@
   @keyframes slide { from { transform: translateX(-40px); opacity: .4; } }
   .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 12px; }
   .modal-head h2 { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .head-actions { display: flex; align-items: center; gap: 8px; }
   .close-x { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
   .close-x:hover { background: var(--line-2); }
   .modal-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
@@ -774,7 +775,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-10-07-14';
+  var APP_VERSION = '2026-10-28-15';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -2525,7 +2526,10 @@
       el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'הצעת מחיר ' + q.number }, [
         el('div', { class: 'modal-head' }, [
           el('h2', {}, ['הצעת מחיר ' + q.number, el('span', { class: 'chip ' + st.cls }, [st.label])]),
-          el('button', { class: 'close-x', 'aria-label': 'סגירה', onclick: close }, [icon('close')]),
+          el('div', { class: 'head-actions' }, [
+            btn('primary small', 'edit', 'עריכת ההצעה', function () { openEditQuote(q); }),
+            el('button', { class: 'close-x', 'aria-label': 'סגירה', onclick: close }, [icon('close')]),
+          ]),
         ]),
         el('div', { class: 'sheet' }, [buildQuoteDoc(q, s)]),
         paymentsBox(q),
