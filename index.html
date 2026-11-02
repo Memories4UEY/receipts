@@ -823,7 +823,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-11-02-19';
+  var APP_VERSION = '2026-11-02-20';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -1548,6 +1548,10 @@
           c.phone ? el('a', { class: 'btn small wa', href: 'https://wa.me/' + waPhone(c.phone), target: '_blank', rel: 'noopener' }, [icon('whatsapp'), 'וואטסאפ']) : null,
           c.email ? el('a', { class: 'btn small', href: 'mailto:' + c.email, dir: 'ltr' }, [c.email]) : null,
         ]) : null,
+        !editing ? el('div', { class: 'modal-actions', style: 'margin:0 0 18px' }, [
+          btn('primary', 'plus', 'הצעת מחיר חדשה ללקוח', function () { newDocForClient(c, 'quote'); }),
+          btn('', 'receipt', 'קבלה חדשה ללקוח', function () { newDocForClient(c, 'receipt'); }),
+        ]) : null,
         el('div', { class: 'client-kpis' }, [
           el('div', { class: 'card' }, [el('div', { class: 'k' }, ['שולם עד היום']), el('div', { class: 'v' }, [fmtMoney(stats.total)])]),
           el('div', { class: 'card' }, [el('div', { class: 'k' }, ['יתרה לגבייה']), el('div', { class: 'v' + (stats.balance ? ' due' : '') }, [fmtMoney(stats.balance)])]),
@@ -1567,6 +1571,15 @@
     document.body.appendChild(overlay);
   }
   function closeOverlay() {}
+  // פותח הצעת מחיר או קבלה חדשה, כשפרטי הלקוח כבר ממולאים
+  function newDocForClient(c, kind) {
+    state.activeClientId = null; state.clientEdit = null;
+    var who = { clientId: c.id, clientName: c.name || '', clientPhone: c.phone || '', clientEmail: c.email || '' };
+    if (kind === 'receipt') { openNewReceipt(who); return; }
+    openNewQuote();
+    Object.assign(state.quoteDraft, who);
+    render();
+  }
   function clientEditForm(c) {
     var d = state.clientEdit;
     return el('div', { class: 'card', style: 'margin-bottom:18px' }, [
@@ -1996,6 +2009,10 @@
   }
 
   // ---------------- client picker (shared) ----------------
+  // לחיצה מחוץ לרשימת הלקוחות סוגרת אותה
+  document.addEventListener('mousedown', function (e) {
+    if (state.clientPickerOpen && !(e.target.closest && e.target.closest('.autocomplete'))) { state.clientPickerOpen = false; render(); }
+  });
   function clientPicker(d) {
     var acWrap = el('div', { class: 'field full autocomplete' }, [
       el('label', {}, ['לקוח']),
@@ -2009,9 +2026,9 @@
         onfocus: function () { if (!state.clientPickerOpen) { state.clientPickerOpen = true; render(); } }
       }),
     ]);
-    if (state.clientPickerOpen && state.clientQuery) {
-      var q = state.clientQuery.toLowerCase();
-      var matches = state.clients.filter(function (c) { return (c.name || '').toLowerCase().indexOf(q) > -1; }).slice(0, 6);
+    if (state.clientPickerOpen && (state.clientQuery || (!d.clientName && state.clients.length))) {
+      var q = (state.clientQuery || '').toLowerCase();
+      var matches = state.clients.filter(function (c) { return !q || (c.name || '').toLowerCase().indexOf(q) > -1 || (c.phone || '').indexOf(q) > -1; }).slice(0, q ? 6 : 8);
       var acList = el('div', { class: 'ac-list' }, []);
       matches.forEach(function (c) {
         acList.appendChild(el('div', {
@@ -2021,7 +2038,7 @@
           }
         }, [el('div', { class: 'n' }, [c.name]), (c.phone || c.email) ? el('div', { class: 'p' }, [[c.phone, c.email].filter(Boolean).join(' · ')]) : null]));
       });
-      acList.appendChild(el('div', {
+      if (state.clientQuery) acList.appendChild(el('div', {
         class: 'ac-item ac-new', onclick: function () { state.clientPickerOpen = false; render(); }
       }, ['+ הוספת לקוח חדש "' + state.clientQuery + '"']));
       acWrap.appendChild(acList);
