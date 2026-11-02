@@ -196,7 +196,28 @@
   .tbl.compact .tr { grid-template-columns: 48px minmax(0, 1fr) 84px 104px; }
   .tbl.compact .c-date { display: none; }
   .tbl.expenses .tr { grid-template-columns: minmax(0, 1fr) 150px 96px 110px 40px; }
-  .tbl.clients .tr { grid-template-columns: minmax(0, 1fr) 150px 90px 120px; }
+  .tbl.clients .tr { grid-template-columns: minmax(150px, 1fr) 120px minmax(0, 1.5fr) 80px 105px 105px; }
+  .c-qs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+  .c-qs.muted { font-size: 13px; color: var(--muted); }
+  .tr.th .c-qs { display: block; }
+  .qs-more { font-size: 12.5px; color: var(--muted); }
+  .c-bal { color: var(--pending); }
+  .c-bal.zero { color: var(--muted); font-weight: 400; }
+  .tr.th .c-bal { color: var(--muted); }
+  .pbar { height: 4px; border-radius: 99px; background: var(--line-2); margin-top: 6px; overflow: hidden; width: 76px; margin-inline-start: auto; }
+  .pbar i { display: block; height: 100%; border-radius: 99px; background: var(--pending); }
+  .pbar.paid i { background: var(--paid); }
+  .pbar-t { font-size: 11.5px; color: var(--muted); font-weight: 500; margin-top: 3px; }
+  .q-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .q-stage { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: right; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); padding: 11px 12px 10px; cursor: pointer; font: inherit; color: var(--ink); min-width: 0; }
+  .q-stage::before { content: ''; position: absolute; top: 0; right: 12px; left: 12px; height: 3px; border-radius: 0 0 3px 3px; background: var(--st); }
+  .q-stage:hover { border-color: #C9CFDB; }
+  .q-stage.on { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+  .q-stage.empty .qs-count, .q-stage.empty .qs-label { color: var(--muted); }
+  .qs-label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .qs-count { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .qs-amt { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-variant-numeric: tabular-nums; }
+  .st-all { --st: var(--ink); } .st-draft { --st: #A3AAB8; } .st-sent { --st: var(--blue); } .st-pending { --st: var(--pending); } .st-paid { --st: var(--paid); } .st-declined { --st: var(--danger); }
   .c-num { color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
   .c-main { min-width: 0; }
   .c-main .n { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -287,7 +308,8 @@
   .send-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 22px; }
   .action-panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 18px 18px; margin-top: 18px; box-shadow: var(--lift); }
   .action-panel .send-label { margin-top: 14px; }
-  .client-kpis { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin: 4px 0 20px; }
+  .client-kpis { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr 1fr; gap: 12px; margin: 4px 0 20px; }
+  .client-kpis .v.due { color: var(--pending); }
   .client-kpis .card { padding: 16px 18px; }
   .client-kpis .k { font-size: 13px; color: var(--muted); }
   .client-kpis .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
@@ -562,7 +584,14 @@
     .tbl.expenses .c-cat { display: none; }
     .tbl.expenses .c-date { grid-area: date; text-align: left; font-size: 12.5px; color: var(--muted); }
     .tbl.expenses .c-act { grid-area: act; }
-    .tbl.clients .tr { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'main amt' 'main cnt'; row-gap: 2px; }
+    .tbl.clients .tr { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'main amt' 'main cnt' 'qs qs'; row-gap: 2px; }
+    .tbl.clients .c-qs { grid-area: qs; margin-top: 6px; }
+    .tbl.clients .c-qs.muted { display: none; }
+    .tbl.clients .c-bal { display: none; }
+    .q-stages { display: flex; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding: 2px 16px 4px; }
+    .q-stages::-webkit-scrollbar { display: none; }
+    .q-stages { align-items: flex-start; }
+    .q-stage { flex: 0 0 132px; height: auto; }
     .tbl.clients .c-phone { display: none; }
     .tbl.clients .c-cnt { grid-area: cnt; text-align: left; font-size: 12.5px; color: var(--muted); }
     .item-row { grid-template-columns: 1fr 1fr 40px; align-items: end; }
@@ -794,7 +823,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-11-02-18';
+  var APP_VERSION = '2026-11-02-19';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -1097,7 +1126,7 @@
       ]),
       el('div', { class: 'hero-side' }, [
         el('button', { class: 'hero-stat pending', onclick: function () {
-          if (balQuotes.length) { state.quoteFilter = 'balance'; state.view = 'quotes'; } else { state.receiptFilter = 'pending'; state.view = 'receipts'; }
+          if (balQuotes.length) { state.quoteFilter = 'deposit'; state.view = 'quotes'; } else { state.receiptFilter = 'pending'; state.view = 'receipts'; }
           render();
         } }, [
           el('span', { class: 'k' }, ['ממתין לתשלום']),
@@ -1437,12 +1466,34 @@
       if (r.clientId === clientId) { count++; if (r.status === 'paid') total += Number(r.amount) || 0; }
     });
     state.quotes.forEach(function (q) { if (q.clientId === clientId) quotes++; });
-    return { total: total, count: count, quotes: quotes };
+    var active = [], balance = 0;
+    state.quotes.forEach(function (q) {
+      if (q.clientId !== clientId) return;
+      var k = quoteStatusKey(q);
+      if (['draft', 'sent', 'approved', 'deposit'].indexOf(k) > -1) active.push(q);
+      if (k === 'approved' || k === 'deposit') balance += quoteBalance(q);
+    });
+    return { total: total, count: count, quotes: quotes, active: active, balance: balance };
+  }
+  // הצעות פתוחות של לקוח, כתגיות סטטוס
+  function clientQuoteChips(st) {
+    if (!st.active.length) return el('div', { class: 'c-qs muted' }, [st.quotes ? 'אין הצעות פתוחות' : 'אין הצעות']);
+    var shown = st.active.slice(0, 2).map(function (q) {
+      var k = quoteStatusKey(q), s2 = QUOTE_STATUS[k] || QUOTE_STATUS.draft;
+      var txt = s2.label + (k === 'deposit' ? ', יתרה ' + fmtMoney(quoteBalance(q)) : '') + (q.eventDate ? ' · ' + fmtDate(q.eventDate) : '');
+      return el('span', { class: 'chip ' + s2.cls }, [txt]);
+    });
+    if (st.active.length > 2) shown.push(el('span', { class: 'qs-more' }, ['ועוד ' + (st.active.length - 2)]));
+    return el('div', { class: 'c-qs' }, shown);
   }
 
   function renderClientsPage(main) {
     main.appendChild(el('div', { class: 'page-head' }, [
-      el('div', {}, [el('h1', {}, ['לקוחות']), el('div', { class: 'hint' }, [state.clients.length ? state.clients.length + ' לקוחות' : 'לקוחות נשמרים אוטומטית מכל קבלה והצעת מחיר'])]),
+      el('div', {}, [el('h1', {}, ['לקוחות']), el('div', { class: 'hint' }, [state.clients.length ? (function () {
+        var withOpen = 0, owed = 0;
+        state.clients.forEach(function (c) { var st = clientStats(c.id); if (st.active.length) withOpen++; owed += st.balance; });
+        return [state.clients.length === 1 ? 'לקוח אחד' : state.clients.length + ' לקוחות', withOpen ? (withOpen === 1 ? 'אחד' : withOpen) + ' עם הצעה פתוחה' : '', owed ? fmtMoney(owed) + ' לגבייה' : ''].filter(Boolean).join(', ');
+      })() : 'לקוחות נשמרים אוטומטית מכל קבלה והצעת מחיר'])]),
     ]));
     main.appendChild(el('div', { class: 'toolbar' }, [
       searchBox(state.listSearch, 'חיפוש לפי שם, טלפון או מייל', function (e) { state.listSearch = e.target.value; render(); }),
@@ -1463,12 +1514,14 @@
       return el('div', { class: 'tr row', role: 'button', tabindex: '0', onclick: open, onkeydown: function (e) { if (e.key === 'Enter') open(); } }, [
         el('div', { class: 'c-main' }, [el('div', { class: 'n' }, [c.name]), c.email ? el('div', { class: 'd', dir: 'ltr', style: 'text-align:right' }, [c.email]) : null]),
         el('div', { class: 'c-date c-phone', dir: 'ltr', style: 'text-align:right' }, [c.phone || '']),
+        clientQuoteChips(st),
         el('div', { class: 'c-date c-cnt' }, [st.count === 1 ? 'קבלה אחת' : st.count + ' קבלות']),
         el('div', { class: 'c-amt' }, [fmtMoney(st.total)]),
+        el('div', { class: 'c-amt c-bal' + (st.balance ? '' : ' zero') }, [st.balance ? fmtMoney(st.balance) : '—']),
       ]);
     });
     main.appendChild(el('div', { class: 'tbl clients' }, [
-      tableHead([['שם', 'c-main'], ['טלפון', 'c-date c-phone'], ['קבלות', 'c-date c-cnt'], ['שולם עד היום', 'c-amt']]),
+      tableHead([['שם', 'c-main'], ['טלפון', 'c-date c-phone'], ['הצעות פתוחות וסטטוס', 'c-qs'], ['קבלות', 'c-date c-cnt'], ['שולם עד היום', 'c-amt'], ['יתרה לגבייה', 'c-amt c-bal']]),
     ].concat(rows)));
   }
 
@@ -1497,6 +1550,7 @@
         ]) : null,
         el('div', { class: 'client-kpis' }, [
           el('div', { class: 'card' }, [el('div', { class: 'k' }, ['שולם עד היום']), el('div', { class: 'v' }, [fmtMoney(stats.total)])]),
+          el('div', { class: 'card' }, [el('div', { class: 'k' }, ['יתרה לגבייה']), el('div', { class: 'v' + (stats.balance ? ' due' : '') }, [fmtMoney(stats.balance)])]),
           el('div', { class: 'card' }, [el('div', { class: 'k' }, ['קבלות']), el('div', { class: 'v' }, [String(stats.count)])]),
           el('div', { class: 'card' }, [el('div', { class: 'k' }, ['הצעות מחיר']), el('div', { class: 'v' }, [String(stats.quotes)])]),
         ]),
@@ -2251,6 +2305,16 @@
     render();
   }
 
+  function quotePayBar(q) {
+    var k = quoteStatusKey(q), total = quoteTotal(q), paid = quotePaid(q);
+    if ((k !== 'deposit' && k !== 'paid') || !total) return el('div', { class: 'c-amt' }, [fmtMoney(total)]);
+    var pct = Math.min(100, Math.round(paid / total * 100));
+    return el('div', { class: 'c-amt' }, [
+      fmtMoney(total),
+      el('div', { class: 'pbar ' + k, title: 'שולם ' + fmtMoney(paid) + ' מתוך ' + fmtMoney(total) }, [el('i', { style: 'width:' + pct + '%' })]),
+      el('div', { class: 'pbar-t' }, [k === 'paid' ? 'שולם הכל' : 'שולם ' + fmtMoney(paid)]),
+    ]);
+  }
   function renderQuoteList(items, compact) {
     var rows = items.map(function (q) {
       var st = QUOTE_STATUS[quoteStatusKey(q)] || QUOTE_STATUS.draft;
@@ -2263,12 +2327,46 @@
         ]),
         el('div', { class: 'c-date' }, [fmtDate(q.issueDate)]),
         el('div', { class: 'c-st' }, [el('span', { class: 'chip ' + st.cls }, [st.label])]),
-        el('div', { class: 'c-amt' }, [fmtMoney(quoteTotal(q))]),
+        quotePayBar(q),
       ]);
     });
     return el('div', { class: 'tbl quotes' + (compact ? ' compact' : '') }, [
       compact ? null : tableHead([['מס\'', 'c-num'], ['לקוח ואירוע', 'c-main'], ['תאריך', 'c-date'], ['סטטוס', 'c-st'], ['סכום', 'c-amt']]),
     ].concat(rows));
+  }
+
+  // שלבי ההצעה, לפי סדר החיים של עסקה: טיוטה, נשלחה, אושרה, מקדמה, שולמה. בנוסף אלה שלא יצאו לפועל
+  var QUOTE_STAGES = [
+    { key: 'all', label: 'כל ההצעות', cls: 'all', note: 'כל מה שבמערכת' },
+    { key: 'draft', label: 'טיוטה', cls: 'draft', note: 'עוד לא נשלחו ללקוח' },
+    { key: 'sent', label: 'נשלחה', cls: 'sent', note: 'מחכות לתשובה מהלקוח' },
+    { key: 'approved', label: 'אושרה', cls: 'sent', note: 'הלקוח אישר, עוד לא שילם' },
+    { key: 'deposit', label: 'מקדמה התקבלה', cls: 'pending', note: 'שולם חלק, נשארה יתרה' },
+    { key: 'paid', label: 'שולמה במלואה', cls: 'paid', note: 'העסקה הושלמה' },
+    { key: 'closed', label: 'לא יצאו לפועל', cls: 'declined', note: 'לא אושרו או שהלקוח ביטל' },
+  ];
+  function quoteInStage(q, f) {
+    if (f === 'all') return true;
+    var k = quoteStatusKey(q);
+    if (f === 'closed') return k === 'declined' || k === 'cancelled';
+    return k === f;
+  }
+  function quoteStagesBar(f) {
+    return el('div', { class: 'q-stages', role: 'group', 'aria-label': 'סינון לפי שלב' }, QUOTE_STAGES.map(function (g) {
+      var list = state.quotes.filter(function (q) { return quoteInStage(q, g.key); });
+      var amt = g.key === 'deposit'
+        ? 'יתרה ' + fmtMoney(list.reduce(function (s, q) { return s + quoteBalance(q); }, 0))
+        : fmtMoney(list.reduce(function (s, q) { return s + quoteTotal(q); }, 0));
+      return el('button', {
+        class: 'q-stage st-' + g.cls + (f === g.key ? ' on' : '') + (list.length ? '' : ' empty'),
+        'aria-pressed': f === g.key ? 'true' : 'false', title: g.note,
+        onclick: function () { state.quoteFilter = g.key; render(); }
+      }, [
+        el('span', { class: 'qs-label' }, [g.label]),
+        el('span', { class: 'qs-count' }, [String(list.length)]),
+        el('span', { class: 'qs-amt' }, [list.length ? amt : g.note]),
+      ]);
+    }));
   }
 
   function renderQuotesPage(main) {
@@ -2279,16 +2377,12 @@
     ]));
     main.appendChild(el('div', { class: 'toolbar' }, [
       searchBox(state.quoteSearch, 'חיפוש לפי לקוח, סוג אירוע או מספר', function (e) { state.quoteSearch = e.target.value; render(); }),
-      el('div', { class: 'seg', role: 'group', 'aria-label': 'סינון לפי סטטוס' }, [['all', 'הכל'], ['open', 'פתוחות'], ['balance', 'יתרה פתוחה'], ['approved', 'אושרו']].map(function (o) {
-        return el('button', { class: f === o[0] ? 'on' : '', 'aria-pressed': f === o[0] ? 'true' : 'false', onclick: function () { state.quoteFilter = o[0]; render(); } }, [o[1]]);
-      })),
     ]));
+    if (!QUOTE_STAGES.some(function (g) { return g.key === f; })) f = 'all';
+    if (state.quotes.length) main.appendChild(quoteStagesBar(f));
     var q = (state.quoteSearch || '').trim().toLowerCase();
     var items = state.quotes.filter(function (x) {
-      if (f === 'open' && !((x.status === 'draft' || x.status === 'sent') && !quotePaid(x))) return false;
-      var k = quoteStatusKey(x);
-      if (f === 'approved' && ['approved', 'deposit', 'paid'].indexOf(k) < 0) return false;
-      if (f === 'balance' && k !== 'deposit') return false;
+      if (!quoteInStage(x, f)) return false;
       if (!q) return true;
       return (x.clientName || '').toLowerCase().indexOf(q) > -1 ||
              (x.eventType || '').toLowerCase().indexOf(q) > -1 ||
