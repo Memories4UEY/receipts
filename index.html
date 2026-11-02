@@ -451,6 +451,15 @@
   .pay-item.adv { cursor: default; align-items: center; }
   .pay-item.adv:hover { color: var(--ink); }
   .adv-end { display: inline-flex; align-items: center; gap: 6px; }
+  .pay-rows { display: flex; flex-direction: column; gap: 8px; }
+  .pay-row { display: grid; grid-template-columns: 150px 150px 1fr 40px; gap: 8px; align-items: center; }
+  .pay-row select { background: var(--panel); border: 1px solid #D6DAE2; border-radius: var(--r-md); padding: 10px 12px; font-size: 15px; color: var(--ink); }
+  .pay-row input { background: var(--panel); border: 1px solid #D6DAE2; border-radius: var(--r-md); padding: 10px 28px 10px 12px; font-size: 15px; width: 100%; }
+  .pay-date { font-size: 13px; color: var(--muted); }
+  .pay-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
+  .pay-total { font-size: 15px; color: var(--ink-2); }
+  .pay-total b { color: var(--blue); font-size: 18px; font-variant-numeric: tabular-nums; }
+  .receipt-doc .rd-pays .v { text-align: left; line-height: 1.7; }
   .adv-form { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-2); }
 
   /* ---------- Login / gate ---------- */
@@ -527,6 +536,9 @@
     .hero-stat .v { font-size: 21px; }
     .events { grid-template-columns: 1fr; }
     .stat-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pay-row { grid-template-columns: 1fr 1fr 40px; }
+    .pay-row .pay-date { grid-column: 1 / -1; order: 4; }
+    .pay-row select, .pay-row input { font-size: 16px; }
     .tbl.months .tr { grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-areas: none; }
     .tbl.months .tr.th { display: grid; }
     .tbl.months .tr > div { grid-area: auto !important; font-size: 13.5px; }
@@ -782,7 +794,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-11-02-17';
+  var APP_VERSION = '2026-11-02-18';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -1252,7 +1264,7 @@
     var rows = [['מספר', 'תאריך', 'לקוח', 'תיאור', 'סכום', 'אופן תשלום', 'סטטוס']];
     state.receipts.slice().sort(function (a, b) { return a.number - b.number; }).forEach(function (r) {
       rows.push([r.number, fmtDate(r.issueDate), r.clientName || '', (r.description || '').replace(/\n/g, ' '),
-        r.amount, r.method === 'none' ? 'ללא' : (PAY_METHODS[r.method] || r.method), RECEIPT_STATE[receiptStateKey(r)].label]);
+        r.amount, payMethodLabel(r), RECEIPT_STATE[receiptStateKey(r)].label]);
     });
     var csv = '﻿' + rows.map(function (row) {
       return row.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
@@ -1587,26 +1599,7 @@
       }, [d.description]),
     ]));
 
-    var amountField = el('div', { class: 'field' }, [
-      el('label', {}, ['סכום']),
-      el('div', { class: 'amount-wrap' }, [
-        el('span', { class: 'sign' }, ['₪']),
-        el('input', {
-          type: 'number', inputmode: 'decimal', placeholder: '0', value: d.amount,
-          oninput: function (e) { d.amount = e.target.value; }
-        }),
-      ]),
-    ]);
-    grid.appendChild(amountField);
-
-    var methodField = el('div', { class: 'field' }, [
-      el('label', {}, ['אופן תשלום']),
-      el('select', { onchange: function (e) { d.method = e.target.value; } },
-        Object.keys(PAY_METHODS).map(function (k) {
-          return el('option', { value: k, selected: d.method === k ? 'selected' : null }, [PAY_METHODS[k]]);
-        })),
-    ]);
-    grid.appendChild(methodField);
+    grid.appendChild(paymentsEditor(d));
 
     grid.appendChild(el('div', { class: 'field' }, [
       el('label', {}, ['תאריך הפקה']),
@@ -1643,10 +1636,59 @@
     main.appendChild(card);
   }
 
+  // פירוט תשלום: אפשר כמה אמצעי תשלום בקבלה אחת (למשל מקדמה בביט והשאר במזומן)
+  function draftPayments(d) {
+    if (!d.payments || !d.payments.length) d.payments = [{ method: d.method || 'bit', amount: d.amount || '', date: '' }];
+    return d.payments;
+  }
+  function paymentsSum(list) { return (list || []).reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0); }
+  function paymentsEditor(d) {
+    var list = draftPayments(d);
+    function syncTotal() {
+      d.amount = String(paymentsSum(list));
+      var t = document.getElementById('pay-total'); if (t) t.textContent = fmtMoney(paymentsSum(list));
+    }
+    syncTotal();
+    var rows = list.map(function (p, i) {
+      return el('div', { class: 'pay-row' }, [
+        el('select', { 'aria-label': 'אמצעי תשלום', onchange: function (e) { p.method = e.target.value; } },
+          Object.keys(PAY_METHODS).map(function (k) { return el('option', { value: k, selected: p.method === k ? 'selected' : null }, [PAY_METHODS[k]]); })),
+        el('div', { class: 'amount-wrap' }, [
+          el('span', { class: 'sign' }, ['₪']),
+          el('input', { type: 'number', inputmode: 'decimal', min: '0', placeholder: '0', value: p.amount, 'aria-label': 'סכום', oninput: function (e) { p.amount = e.target.value; syncTotal(); } }),
+        ]),
+        el('div', { class: 'pay-date' }, [p.date ? 'שולם ב-' + fmtDate(p.date) : '']),
+        el('button', { type: 'button', class: 'i-del', title: 'הסרה', 'aria-label': 'הסרת אמצעי התשלום', disabled: list.length < 2 ? 'disabled' : null,
+          onclick: function () { list.splice(i, 1); render(); } }, [icon('trash')]),
+      ]);
+    });
+    return el('div', { class: 'field full' }, [
+      el('label', {}, ['פירוט התשלום']),
+      el('div', { class: 'pay-rows' }, rows),
+      el('div', { class: 'pay-foot' }, [
+        el('button', { type: 'button', class: 'btn small', onclick: function () {
+          var left = Math.max(0, (Number(d.dealLeft) || 0) - paymentsSum(list));
+          list.push({ method: 'cash', amount: left ? String(left) : '', date: '' }); render();
+        } }, [icon('plus'), 'הוספת אמצעי תשלום']),
+        el('div', { class: 'pay-total' }, ['סה"כ בקבלה ', el('b', { id: 'pay-total' }, [fmtMoney(paymentsSum(list))])]),
+      ]),
+      el('div', { class: 'q-sum-note' }, ['שולם בכמה דרכים? מוסיפים שורה לכל אמצעי תשלום, למשל מקדמה בביט והשאר במזומן.']),
+    ]);
+  }
+  function payMethodLabel(r) {
+    if (r.method === 'none') return 'ללא';
+    if (r.payments && r.payments.length > 1) return r.payments.map(function (p) { return PAY_METHODS[p.method] || p.method; }).join(' + ');
+    return PAY_METHODS[r.method] || r.method || '';
+  }
+
   async function saveNewReceipt() {
     var d = state.newReceiptDraft;
     if (state.saving) return;
     if (!d.clientName.trim()) { showToast('צריך למלא שם לקוח'); return; }
+    var payList = draftPayments(d).filter(function (p) { return Number(p.amount) > 0; })
+      .map(function (p) { return { method: p.method || 'cash', amount: Number(p.amount), date: p.date || '' }; });
+    d.amount = String(paymentsSum(payList));
+    d.method = payList.length > 1 ? 'mixed' : (payList[0] ? payList[0].method : d.method);
     if (!(Number(d.amount) > 0)) { showToast('צריך למלא סכום גדול מ-0'); return; }
     if (d.clientEmail && !isEmail(d.clientEmail)) { showToast('כתובת המייל לא תקינה'); return; }
     if (!state.db) { showToast('צריך להתחבר כדי לשמור'); return; }
@@ -1671,7 +1713,7 @@
             number: n, clientId: clientId, clientName: d.clientName.trim(),
             clientPhone: d.clientPhone || '', clientEmail: (d.clientEmail || '').trim(), description: d.description || '',
             amount: Number(d.amount), method: d.method, status: d.status, fromQuoteId: d.fromQuoteId || null,
-            kind: d.kind || null, quoteNumber: fq2 ? fq2.number : null,
+            kind: d.kind || null, quoteNumber: fq2 ? fq2.number : null, payments: payList,
             dealTotal: fq2 ? quoteTotal(fq2) : null,
             balanceAfter: fq2 ? Math.max(0, quoteTotal(fq2) - quoteReceiptsPaid(fq2) - (d.coverAdvances ? 0 : quoteAdvanceTotal(fq2)) - (d.status === 'paid' ? Number(d.amount) : 0)) : null,
             eventDate: d.eventDate, issueDate: d.issueDate, notes: d.notes || '',
@@ -1750,7 +1792,11 @@
       el('div', {}, [
         el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['לכבוד']), el('span', { class: 'v' }, [r.clientName])]),
         el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['תאריך האירוע']), el('span', { class: 'v' }, [fmtDate(r.eventDate)])]),
-        el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['אופן תשלום']), el('span', { class: 'v' }, [PAY_METHODS[r.method] || r.method])]),
+        (r.payments && (r.payments.length > 1 || r.payments.some(function (p) { return p.date && p.date !== r.issueDate; })))
+          ? el('div', { class: 'rd-row rd-pays' }, [el('span', { class: 'k' }, ['אופן תשלום']), el('span', { class: 'v' }, r.payments.map(function (p) {
+              return el('div', {}, [(PAY_METHODS[p.method] || p.method) + ' ' + fmtMoney(p.amount) + (p.date ? ', ' + fmtDate(p.date) : '')]);
+            }))])
+          : el('div', { class: 'rd-row' }, [el('span', { class: 'k' }, ['אופן תשלום']), el('span', { class: 'v' }, [PAY_METHODS[r.method] || r.method])]),
       ]),
       r.description ? el('div', { class: 'rd-desc' }, [r.description]) : null,
       el('div', { class: 'rd-amount' }, [
@@ -1809,7 +1855,7 @@
 
   var pdfCache = {};
   function pdfKey(r, s) {
-    return [r.id, r.number, r.status, r.amount, r.method, r.clientName, r.description, r.issueDate, r.eventDate, r.dealTotal, r.balanceAfter, r.kind, r.refundOfNumber,
+    return [r.id, r.number, r.status, r.amount, r.method, r.clientName, r.description, r.issueDate, r.eventDate, r.dealTotal, r.balanceAfter, r.kind, r.refundOfNumber, JSON.stringify(r.payments || null),
       s.businessName, s.idNumber, s.address, s.phone, s.email, s.exemptNote].join('|');
   }
   function pdfFileName(r) { return 'קבלה-' + r.number + '-Memories4U.pdf'; }
@@ -2655,18 +2701,20 @@
         return (it.desc || '') + (Number(it.qty) !== 1 ? ' x' + it.qty : '');
       }).filter(Boolean).join(', ');
       if (q.eventType) desc = q.eventType + (desc ? ', ' + desc : '');
-      var adv = quoteAdvances(q);
-      if (adv.length) {
-        desc += ' (כולל מקדמה של ' + fmtMoney(quoteAdvanceTotal(q)) + ' ששולמה ' + adv.map(function (a) {
-          return (a.method && PAY_METHODS[a.method] ? 'ב' + PAY_METHODS[a.method] + ' ' : '') + 'ב-' + fmtDate(a.date);
-        }).join(', ') + ')';
-      }
       amount = String(Math.max(0, quoteTotal(q) - quoteReceiptsPaid(q)));
+    }
+    var adv = (kind || 'full') === 'full' ? quoteAdvances(q) : [];
+    var payments = null;
+    if (adv.length) {
+      payments = adv.map(function (a) { return { method: a.method || 'bit', amount: String(a.amount), date: a.date || '' }; });
+      var rest = Number(amount) - quoteAdvanceTotal(q);
+      if (rest > 0) payments.push({ method: 'cash', amount: String(rest), date: '' });
     }
     state.activeQuoteId = null;
     openNewReceipt({
       clientId: q.clientId || null, clientName: q.clientName || '', clientPhone: q.clientPhone || '', clientEmail: q.clientEmail || '',
       description: desc, amount: amount, eventDate: q.eventDate || todayIso(), fromQuoteId: q.id, kind: kind || 'full',
+      payments: payments || [{ method: 'bit', amount: amount, date: '' }], dealLeft: amount,
       coverAdvances: (kind || 'full') === 'full' && quoteAdvances(q).length > 0
     });
   }
@@ -2790,7 +2838,7 @@
       'לכבוד: ' + r.clientName,
       'תאריך: ' + fmtDate(r.issueDate),
       r.description ? 'פירוט: ' + r.description : null,
-      'סכום: ' + fmtMoney(r.amount) + ' (' + (PAY_METHODS[r.method] || r.method) + ')',
+      'סכום: ' + fmtMoney(r.amount) + ' (' + payMethodLabel(r) + ')',
       'סטטוס: ' + (r.status === 'paid' ? 'שולם' : 'ממתין לתשלום'),
       s.exemptNote || DEFAULT_EXEMPT_NOTE,
     ].filter(Boolean);
@@ -2832,7 +2880,7 @@
     var left = Math.max(0, (Number(r.amount) || 0) - refundedAmount(r));
     state.refundDraft = {
       originalId: r.id, full: true, amount: String(left), max: left,
-      method: r.method || 'transfer', issueDate: todayIso(), reason: ''
+      method: (r.method === 'mixed' && r.payments && r.payments[0] ? r.payments[0].method : r.method) || 'transfer', issueDate: todayIso(), reason: ''
     };
     state.activeReceiptId = null;
     state.view = 'newRefund';
