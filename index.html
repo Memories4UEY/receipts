@@ -823,7 +823,7 @@
   }
 
   // GitHub שומר את הדף בזיכרון של הדפדפן עד 10 דקות. בודקים אם עלתה גרסה חדשה וטוענים אותה
-  var APP_VERSION = '2026-11-02-20';
+  var APP_VERSION = '2026-11-02-21';
   // "גרסה 11 מ-5.10.2026", מוצג בתפריט ובהגדרות כדי לדעת שהעדכון עלה
   function versionLabel() {
     var m = /^(\d{4})-(\d{2})-(\d{2})-(\d+)$/.exec(APP_VERSION);
@@ -1478,7 +1478,7 @@
   // הצעות פתוחות של לקוח, כתגיות סטטוס
   function clientQuoteChips(st) {
     if (!st.active.length) return el('div', { class: 'c-qs muted' }, [st.quotes ? 'אין הצעות פתוחות' : 'אין הצעות']);
-    var shown = st.active.slice(0, 2).map(function (q) {
+    var shown = st.active.slice().sort(byEventDate(function (x) { return x.eventDate; })).slice(0, 2).map(function (q) {
       var k = quoteStatusKey(q), s2 = QUOTE_STATUS[k] || QUOTE_STATUS.draft;
       var txt = s2.label + (k === 'deposit' ? ', יתרה ' + fmtMoney(quoteBalance(q)) : '') + (q.eventDate ? ' · ' + fmtDate(q.eventDate) : '');
       return el('span', { class: 'chip ' + s2.cls }, [txt]);
@@ -1508,11 +1508,13 @@
         : emptyState('users', 'עוד אין לקוחות', 'לקוח נוסף לכאן בפעם הראשונה שמפיקים לו קבלה או הצעת מחיר.'));
       return;
     }
+    items = items.slice().sort(byEventDate(function (c) { return clientEventDate(c.id); }));
     var rows = items.map(function (c) {
       var st = clientStats(c.id);
+      var evd = clientEventDate(c.id);
       var open = function () { state.activeClientId = c.id; render(); };
       return el('div', { class: 'tr row', role: 'button', tabindex: '0', onclick: open, onkeydown: function (e) { if (e.key === 'Enter') open(); } }, [
-        el('div', { class: 'c-main' }, [el('div', { class: 'n' }, [c.name]), c.email ? el('div', { class: 'd', dir: 'ltr', style: 'text-align:right' }, [c.email]) : null]),
+        el('div', { class: 'c-main' }, [el('div', { class: 'n' }, [c.name]), evd ? el('div', { class: 'd' }, [(evd >= todayIso() ? 'אירוע ב-' : 'האירוע היה ב-') + fmtDate(evd)]) : (c.email ? el('div', { class: 'd', dir: 'ltr', style: 'text-align:right' }, [c.email]) : null)]),
         el('div', { class: 'c-date c-phone', dir: 'ltr', style: 'text-align:right' }, [c.phone || '']),
         clientQuoteChips(st),
         el('div', { class: 'c-date c-cnt' }, [st.count === 1 ? 'קבלה אחת' : st.count + ' קבלות']),
@@ -1561,7 +1563,7 @@
         receipts.length ? el('div', { class: 'section-title', style: 'margin-top:8px' }, ['קבלות']) : null,
         receipts.length ? renderReceiptList(receipts, true) : null,
         quotes.length ? el('div', { class: 'section-title' }, ['הצעות מחיר']) : null,
-        quotes.length ? renderQuoteList(quotes, true) : null,
+        quotes.length ? renderQuoteList(quotes.slice().sort(byEventDate(function (x) { return x.eventDate; })), true) : null,
         !receipts.length && !quotes.length ? emptyState('receipt', 'אין עדיין מסמכים ללקוח הזה', null) : null,
         el('div', { class: 'modal-actions', style: 'margin-top:22px' }, [
           btn('danger', 'trash', 'מחיקת הלקוח', function () { deleteClient(c, receipts.length); }),
@@ -2332,6 +2334,31 @@
       el('div', { class: 'pbar-t' }, [k === 'paid' ? 'שולם הכל' : 'שולם ' + fmtMoney(paid)]),
     ]);
   }
+  // מיון לפי תאריך האירוע: קודם האירועים הקרובים (הכי קרוב למעלה), אחריהם אירועים שעברו (האחרון למעלה), ובסוף בלי תאריך
+  function byEventDate(getDate) {
+    var today = todayIso();
+    return function (a, b) {
+      var da = getDate(a) || '', db = getDate(b) || '';
+      var ga = !da ? 2 : da >= today ? 0 : 1, gb = !db ? 2 : db >= today ? 0 : 1;
+      if (ga !== gb) return ga - gb;
+      if (da === db) return 0;
+      return ga === 0 ? (da < db ? -1 : 1) : (da > db ? -1 : 1);
+    };
+  }
+  // תאריך האירוע הרלוונטי של לקוח: האירוע הקרוב שלו, ואם אין, האחרון שעבר
+  function clientEventDate(clientId) {
+    var dates = [];
+    state.quotes.forEach(function (q) {
+      if (q.clientId !== clientId || !q.eventDate) return;
+      var k = quoteStatusKey(q);
+      if (k !== 'declined' && k !== 'cancelled') dates.push(q.eventDate);
+    });
+    state.receipts.forEach(function (r) { if (r.clientId === clientId && r.eventDate && r.kind !== 'refund') dates.push(r.eventDate); });
+    if (!dates.length) return '';
+    var today = todayIso();
+    var next = dates.filter(function (d) { return d >= today; }).sort()[0];
+    return next || dates.sort().reverse()[0];
+  }
   function renderQuoteList(items, compact) {
     var rows = items.map(function (q) {
       var st = QUOTE_STATUS[quoteStatusKey(q)] || QUOTE_STATUS.draft;
@@ -2340,15 +2367,15 @@
         el('div', { class: 'c-num' }, ['#' + q.number]),
         el('div', { class: 'c-main' }, [
           el('div', { class: 'n' }, [q.clientName || 'לקוח']),
-          el('div', { class: 'd' }, [[q.eventType, q.eventDate ? fmtDate(q.eventDate) : '', quoteStatusKey(q) === 'deposit' ? 'יתרה ' + fmtMoney(quoteBalance(q)) : ''].filter(Boolean).join(', ') || fmtDate(q.issueDate)]),
+          el('div', { class: 'd' }, [[q.eventType, q.eventDate ? 'אירוע ' + fmtDate(q.eventDate) : '', quoteStatusKey(q) === 'deposit' ? 'יתרה ' + fmtMoney(quoteBalance(q)) : ''].filter(Boolean).join(', ') || 'הופקה ' + fmtDate(q.issueDate)]),
         ]),
-        el('div', { class: 'c-date' }, [fmtDate(q.issueDate)]),
+        el('div', { class: 'c-date' }, [q.eventDate ? fmtDate(q.eventDate) : '—']),
         el('div', { class: 'c-st' }, [el('span', { class: 'chip ' + st.cls }, [st.label])]),
         quotePayBar(q),
       ]);
     });
     return el('div', { class: 'tbl quotes' + (compact ? ' compact' : '') }, [
-      compact ? null : tableHead([['מס\'', 'c-num'], ['לקוח ואירוע', 'c-main'], ['תאריך', 'c-date'], ['סטטוס', 'c-st'], ['סכום', 'c-amt']]),
+      compact ? null : tableHead([['מס\'', 'c-num'], ['לקוח ואירוע', 'c-main'], ['תאריך האירוע', 'c-date'], ['סטטוס', 'c-st'], ['סכום', 'c-amt']]),
     ].concat(rows));
   }
 
@@ -2410,7 +2437,7 @@
         ? emptyState('search', 'לא נמצאו הצעות', 'נסו חיפוש אחר או סינון אחר.')
         : emptyState('quote', 'עוד לא נוצרו הצעות מחיר', 'מוסיפים פריטים, והמחיר הכולל מחושב לבד.', btn('primary', 'plus', 'יצירת הצעת מחיר', openNewQuote)));
     } else {
-      main.appendChild(renderQuoteList(items));
+      main.appendChild(renderQuoteList(items.slice().sort(byEventDate(function (x) { return x.eventDate; }))));
     }
   }
 
